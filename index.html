@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chuppy Games — One small game every day, built with AI</title>
+<meta name="description" content="One small game every day, built with AI. Free to play in your browser.">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: "Hiragino Sans", "Yu Gothic", system-ui, sans-serif;
+    min-height: 100vh;
+    background: linear-gradient(150deg, #ffe9a8 0%, #ffd0dc 45%, #bfe6ff 100%);
+    background-attachment: fixed;
+    color: #3d3652;
+    padding: 40px 20px 60px;
+  }
+  .wrap { max-width: 620px; margin: 0 auto; }
+
+  header { text-align: center; margin-bottom: 32px; }
+  h1 { font-size: 34px; color: #ff7aa8; letter-spacing: 1px; margin-bottom: 10px; }
+  .tag { font-size: 15px; line-height: 1.7; opacity: 0.7; }
+  .tag b { color: #3d3652; }
+  .jp { font-size: 12px; opacity: 0.5; margin-top: 8px; }
+
+  .counter {
+    display: inline-block;
+    margin-top: 18px;
+    background: #fffdf8;
+    border: 1px solid rgba(255,255,255,0.9);
+    border-radius: 999px;
+    padding: 8px 22px;
+    font-size: 13px;
+    box-shadow: 0 8px 20px rgba(150,110,140,0.15);
+  }
+  .counter b { color: #ff7aa8; font-size: 16px; }
+
+  .grid { display: grid; gap: 14px; }
+  a.card {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    background: #fffdf8;
+    border: 1px solid rgba(255,255,255,0.9);
+    border-radius: 18px;
+    padding: 16px 18px;
+    text-decoration: none;
+    color: inherit;
+    box-shadow: 0 10px 24px rgba(150,110,140,0.16);
+    transition: transform 0.15s, box-shadow 0.15s;
+  }
+  a.card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 16px 32px rgba(150,110,140,0.26);
+  }
+  .icon {
+    font-size: 34px;
+    width: 58px; height: 58px;
+    display: flex; align-items: center; justify-content: center;
+    background: #fff5e6;
+    border-radius: 14px;
+    flex-shrink: 0;
+  }
+  .meta { flex: 1; min-width: 0; }
+  .day { font-size: 11px; letter-spacing: 1.5px; color: #ff7aa8; font-weight: bold; }
+  .title { font-size: 17px; font-weight: bold; margin: 2px 0 3px; }
+  .learn { font-size: 12px; opacity: 0.55; line-height: 1.5; }
+  .go { font-size: 20px; opacity: 0.3; flex-shrink: 0; }
+
+  footer { text-align: center; margin-top: 36px; font-size: 12px; opacity: 0.55; line-height: 1.9; }
+  footer a { color: #ff7aa8; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <h1>Chuppy Games</h1>
+    <p class="tag">One small game <b>every day</b>, built with AI.<br>Free to play right in your browser.</p>
+    <p class="jp">AIで毎日ひとつ、小さなゲームを作っています。</p>
+    <div class="counter">Day <b>001</b></div>
+  </header>
+
+  <!-- 新しいゲームは、このすぐ下にコピーして追加していく -->
+  <div class="grid">
+
+    <a class="card" href="day001/">
+      <div class="icon">✊</div>
+      <div class="meta">
+        <div class="day">DAY 001</div>
+        <div class="title">Rock Paper Scissors</div>
+        <div class="learn">Learned: how to score 3-way matchups with one line of math</div>
+      </div>
+      <div class="go">→</div>
+    </a>
+
+  </div>
+
+  <footer>
+    Built with AI · Source code on <a href="https://github.com/chuppygames">GitHub</a><br>
+    <a href="https://instagram.com/chuppygames">@chuppygames</a>
+  </footer>
+
+</div>
+</body>
+</html>
