@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>たまごわり｜Chuppy Games Day 002</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    font-family: "Hiragino Maru Gothic ProN", "Yu Gothic", system-ui, sans-serif;
+    min-height: 100vh;
+    display: flex; align-items: center; justify-content: center;
+    padding: 20px;
+    color: #5b4636;
+    background: #ece3d2;
+    overflow: hidden; position: relative; user-select: none;
+  }
+
+  /* 朝の光の筋 */
+  body::before {
+    content: "";
+    position: fixed; inset: -30%;
+    background: repeating-linear-gradient(105deg,
+      rgba(255,255,255,0.30) 0px, rgba(255,255,255,0.30) 46px,
+      transparent 46px, transparent 170px);
+    animation: drift 26s ease-in-out infinite alternate;
+    pointer-events: none;
+  }
+  @keyframes drift { from { transform: translateX(-40px); } to { transform: translateX(40px); } }
+
+  /* 舞うほこり */
+  .mote {
+    position: fixed; border-radius: 50%;
+    background: #fff; pointer-events: none;
+    animation: float linear infinite;
+  }
+  @keyframes float {
+    0%   { transform: translateY(20px) translateX(0); opacity: 0; }
+    15%  { opacity: 0.9; }
+    85%  { opacity: 0.9; }
+    100% { transform: translateY(-100vh) translateX(40px); opacity: 0; }
+  }
+
+  .app {
+    position: relative; z-index: 2;
+    width: 100%; max-width: 380px;
+    background: #fdfaf3;
+    border-radius: 28px;
+    padding: 8px 8px 20px;
+    box-shadow: 0 18px 40px rgba(120,95,60,0.20);
+  }
+
+  /* 巣箱の屋根 */
+  .roof {
+    height: 30px; margin: -8px -8px 0;
+    border-radius: 28px 28px 0 0;
+    background: #8a7458;
+    position: relative;
+  }
+  .roof::after {
+    content: ""; position: absolute; left: 50%; bottom: -8px;
+    transform: translateX(-50%);
+    width: 18px; height: 18px; border-radius: 50%;
+    background: #5b4636;
+  }
+
+  .inner { padding: 20px 14px 0; }
+
+  h1 {
+    font-size: 27px; text-align: center; letter-spacing: 3px;
+    color: #5b4636;
+  }
+  .sub { text-align: center; font-size: 11px; color: #a89680; margin: 3px 0 14px; }
+
+  .hud { display: flex; gap: 7px; margin-bottom: 9px; }
+  .hud div {
+    flex: 1; text-align: center;
+    background: #f4eee1; border-radius: 14px;
+    padding: 7px 0 5px;
+  }
+  .hud span { display: block; font-size: 10px; color: #a89680; }
+  .hud b { font-size: 20px; color: #5b4636; font-variant-numeric: tabular-nums; }
+
+  .bar { height: 8px; background: #e6ddcb; border-radius: 999px; overflow: hidden; margin-bottom: 12px; }
+  .bar i { display: block; height: 100%; width: 100%; background: #8a7458; transition: width 0.1s linear; }
+
+  .stage {
+    position: relative; height: 300px; overflow: hidden; cursor: pointer;
+    border-radius: 20px;
+    background: #f7f2e7;
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  #nest { position: absolute; bottom: 26px; width: 230px; }
+  #egg { width: 156px; margin-bottom: 34px; transition: transform 0.06s; }
+  #egg.hit { transform: scale(0.94) rotate(var(--tilt)); }
+  #egg.hidden { visibility: hidden; }
+
+  .shard { position: absolute; pointer-events: none; }
+  @keyframes shardFly {
+    0%   { transform: translate(0,0) rotate(0deg); opacity: 1; }
+    100% { transform: translate(var(--sx), var(--sy)) rotate(var(--sr)); opacity: 0; }
+  }
+
+  #reveal { position: absolute; font-size: 74px; opacity: 0; pointer-events: none; margin-bottom: 34px; }
+  #reveal.go { animation: revealPop 0.9s cubic-bezier(.2,1.7,.4,1) forwards; }
+  @keyframes revealPop {
+    0%   { transform: scale(0.2) translateY(24px); opacity: 0; }
+    35%  { transform: scale(1.15) translateY(-8px); opacity: 1; }
+    70%  { transform: scale(1) translateY(-14px); opacity: 1; }
+    100% { transform: scale(1) translateY(-48px); opacity: 0; }
+  }
+
+  #gain {
+    position: absolute; top: 20px;
+    font-size: 25px; font-weight: bold; color: #c98a2e;
+    opacity: 0; pointer-events: none;
+  }
+  #gain.go { animation: gainUp 0.9s ease-out forwards; }
+  @keyframes gainUp {
+    0%   { transform: translateY(12px) scale(0.6); opacity: 0; }
+    25%  { transform: translateY(0) scale(1.15); opacity: 1; }
+    100% { transform: translateY(-32px) scale(1); opacity: 0; }
+  }
+
+  .overlay {
+    position: absolute; inset: 0;
+    background: rgba(250,246,237,0.96);
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 11px;
+    text-align: center; padding: 18px;
+  }
+  .overlay.off { display: none; }
+  .overlay .t { font-size: 22px; color: #5b4636; }
+  .overlay .d { font-size: 13px; color: #a89680; line-height: 1.8; }
+  .overlay .big { font-size: 46px; color: #c98a2e; }
+
+  button.btn {
+    background: #5b4636; color: #fdfaf3; border: none;
+    border-radius: 999px; box-shadow: 0 4px 0 #3f3025;
+    cursor: pointer; font-family: inherit; font-weight: bold;
+    font-size: 16px; padding: 12px 32px 10px;
+    transition: transform 0.06s, box-shadow 0.06s;
+  }
+  button.btn:active { transform: translateY(4px); box-shadow: 0 0 0 #3f3025; }
+
+  .legend { margin-top: 11px; font-size: 10.5px; color: #a89680; text-align: center; line-height: 1.9; }
+
+  /* ===== 演出:羽と光 ===== */
+  #fx { position: fixed; inset: 0; pointer-events: none; overflow: hidden; z-index: 90; }
+
+  .feather { position: absolute; top: -60px; animation: featherFall linear forwards; }
+  @keyframes featherFall {
+    0%   { transform: translateY(0) translateX(0) rotate(0deg); opacity: 0; }
+    10%  { opacity: 1; }
+    25%  { transform: translateY(25vh) translateX(38px) rotate(120deg); }
+    50%  { transform: translateY(50vh) translateX(-30px) rotate(220deg); }
+    75%  { transform: translateY(75vh) translateX(34px) rotate(330deg); }
+    100% { transform: translateY(112vh) translateX(-10px) rotate(430deg); opacity: 0.7; }
+  }
+
+  .rise { position: absolute; bottom: -30px; animation: riseUp 1.5s cubic-bezier(.15,.6,.35,1) forwards; }
+  @keyframes riseUp {
+    0%   { transform: translate(0,0) rotate(0deg) scale(0.6); opacity: 0; }
+    18%  { opacity: 1; }
+    100% { transform: translate(var(--tx), var(--ty)) rotate(var(--tr)) scale(1.1); opacity: 0; }
+  }
+
+  #glow { position: fixed; inset: 0; z-index: 93; pointer-events: none; opacity: 0;
+          background: radial-gradient(circle at 50% 45%, rgba(255,250,235,0.96) 0%, rgba(240,222,185,0.7) 38%, rgba(240,222,185,0) 74%); }
+  #glow.go { animation: glowOut 1s ease-out forwards; }
+  @keyframes glowOut { 0% { opacity: 0; } 22% { opacity: 1; } 100% { opacity: 0; } }
+
+  .sway { animation: swayA 0.5s ease-in-out 2; }
+  @keyframes swayA {
+    0%,100% { transform: rotate(0deg); }
+    25% { transform: rotate(-1.8deg); }
+    75% { transform: rotate(1.8deg); }
+  }
+
+  #toast {
+    position: fixed; left: 50%; top: 15%; transform: translateX(-50%);
+    z-index: 94; display: none;
+    background: #fdfaf3; color: #5b4636; border-radius: 999px;
+    padding: 11px 26px; font-size: 18px; font-weight: bold;
+    box-shadow: 0 4px 0 #d5c9b2, 0 12px 24px rgba(120,95,60,0.28);
+  }
+  #toast.show { display: block; animation: toastIn 1.4s ease-out forwards; }
+  @keyframes toastIn {
+    0%   { transform: translateX(-50%) scale(0.4); opacity: 0; }
+    18%  { transform: translateX(-50%) scale(1.08); opacity: 1; }
+    30%,80% { transform: translateX(-50%) scale(1); opacity: 1; }
+    100% { transform: translateX(-50%) translateY(-26px) scale(0.95); opacity: 0; }
+  }
+
+  #banner { position: fixed; inset: 0; z-index: 95; display: none; align-items: center; justify-content: center; pointer-events: none; }
+  #banner.show { display: flex; }
+  .bnr {
+    background: #fdfaf3;
+    border-radius: 26px; padding: 24px 40px; text-align: center;
+    box-shadow: 0 8px 0 #d5c9b2, 0 26px 50px rgba(120,95,60,0.4);
+    animation: burstIn 0.55s cubic-bezier(.2,1.7,.4,1);
+  }
+  @keyframes burstIn { 0%{transform:scale(0.4) rotate(-8deg); opacity:0} 100%{transform:scale(1) rotate(-2deg); opacity:1} }
+  .bnr .big { font-size: 40px; font-weight: bold; color: #c98a2e; line-height: 1.15; }
+  .bnr .small { font-size: 13px; color: #a89680; margin-top: 7px; }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <div class="roof"></div>
+  <div class="inner">
+
+    <h1>たまごわり</h1>
+    <p class="sub">たまごを れんだして わろう　20びょう</p>
+
+    <div class="hud">
+      <div><span>とくてん</span><b id="score">0</b></div>
+      <div><span>わったかず</span><b id="eggs">0</b></div>
+      <div><span>のこり</span><b id="time">20</b></div>
+    </div>
+
+    <div class="bar"><i id="barFill"></i></div>
+
+    <div class="stage" id="stage">
+
+      <svg id="nest" viewBox="0 0 300 90" xmlns="http://www.w3.org/2000/svg">
+        <ellipse cx="150" cy="66" rx="118" ry="20" fill="#c99a5e" opacity="0.35"/>
+        <g stroke="#c08c4e" stroke-width="5" stroke-linecap="round" fill="none" opacity="0.95">
+          <path d="M40 58 Q110 34 168 52"/>
+          <path d="M56 68 Q140 44 250 62"/>
+          <path d="M34 66 Q120 82 208 66"/>
+          <path d="M90 74 Q170 56 262 72"/>
+        </g>
+        <g stroke="#a9743a" stroke-width="4" stroke-linecap="round" fill="none" opacity="0.85">
+          <path d="M62 62 Q128 76 196 60"/>
+          <path d="M112 52 Q182 40 244 56"/>
+          <path d="M46 74 Q108 62 160 78"/>
+        </g>
+        <g stroke="#e0b478" stroke-width="3" stroke-linecap="round" fill="none" opacity="0.9">
+          <path d="M78 56 Q138 46 200 58"/>
+          <path d="M128 70 Q186 78 236 66"/>
+        </g>
+      </svg>
+
+      <svg id="egg" viewBox="0 0 200 260" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <radialGradient id="shell" cx="36%" cy="26%" r="78%">
+            <stop offset="0%"   stop-color="#fffefa"/>
+            <stop offset="42%"  stop-color="#f8ead2"/>
+            <stop offset="76%"  stop-color="#e6cfa9"/>
+            <stop offset="100%" stop-color="#bf9e70"/>
+          </radialGradient>
+          <clipPath id="eggClip">
+            <path d="M100 6 C152 6 184 88 184 150 C184 212 146 254 100 254 C54 254 16 212 16 150 C16 88 48 6 100 6 Z"/>
+          </clipPath>
+        </defs>
+
+        <ellipse cx="104" cy="252" rx="58" ry="9" fill="#8a5a2b" opacity="0.18"/>
+
+        <path d="M100 6 C152 6 184 88 184 150 C184 212 146 254 100 254 C54 254 16 212 16 150 C16 88 48 6 100 6 Z"
+              fill="url(#shell)" stroke="#b2915f" stroke-width="2"/>
+
+        <g clip-path="url(#eggClip)" opacity="0.42">
+          <circle cx="62"  cy="96"  r="4.6" fill="#c9a97c"/>
+          <circle cx="132" cy="74"  r="3.2" fill="#c9a97c"/>
+          <circle cx="148" cy="138" r="5.2" fill="#bf9e70"/>
+          <circle cx="52"  cy="168" r="4"   fill="#c9a97c"/>
+          <circle cx="96"  cy="206" r="5.6" fill="#bf9e70"/>
+          <circle cx="126" cy="184" r="3"   fill="#c9a97c"/>
+          <circle cx="78"  cy="140" r="2.6" fill="#c9a97c"/>
+          <circle cx="158" cy="200" r="3.6" fill="#bf9e70"/>
+          <circle cx="36"  cy="128" r="3"   fill="#c9a97c"/>
+          <circle cx="112" cy="46"  r="2.4" fill="#c9a97c"/>
+        </g>
+
+        <ellipse cx="68" cy="74" rx="25" ry="35" fill="#fff" opacity="0.55" transform="rotate(-18 68 74)"/>
+        <ellipse cx="60" cy="58" rx="9"  ry="13" fill="#fff" opacity="0.85" transform="rotate(-18 60 58)"/>
+
+        <g clip-path="url(#eggClip)" stroke="#8a6a42" fill="none" stroke-linecap="round" stroke-linejoin="round">
+          <path class="crack" d="M100 40 L92 70 L106 88 L96 116" stroke-width="4"/>
+          <path class="crack" d="M96 116 L118 132 L104 156 L124 176" stroke-width="4"/>
+          <path class="crack" d="M104 156 L74 158 L58 138 L34 146" stroke-width="3.6"/>
+          <path class="crack" d="M124 176 L146 168 L166 186" stroke-width="3.4"/>
+          <path class="crack" d="M96 116 L66 104 L44 112 L20 100" stroke-width="3.4"/>
+          <path class="crack" d="M124 176 L112 208 L128 236" stroke-width="3.2"/>
+        </g>
+      </svg>
+
+      <div id="reveal"></div>
+      <div id="gain"></div>
+
+      <div class="overlay" id="ovStart">
+        <div class="t">たまごを われ！</div>
+        <div class="d">たまごを れんだして わろう。<br>20びょうで なんこ われるかな?</div>
+        <button class="btn" id="btnStart">スタート</button>
+      </div>
+
+      <div class="overlay off" id="ovEnd">
+        <div class="d">とくてん</div>
+        <div class="big" id="finalScore">0</div>
+        <div class="d" id="finalMsg"></div>
+        <button class="btn" id="btnRetry">もういちど</button>
+      </div>
+
+    </div>
+
+    <p class="legend">
+      🐣 ふつう 1てん　　🐤🐤 ふたご 2てん<br>
+      ✨ きんのひよこ 5てん　　🐉 ドラゴン 10てん
+    </p>
+
+  </div>
+</div>
+
+<div id="fx"></div>
+<div id="glow"></div>
+<div id="toast"></div>
+<div id="banner"><div class="bnr"><div class="big" id="bnrBig"></div><div class="small" id="bnrSmall"></div></div></div>
+
+<script>
+/* ===== 舞うほこり ===== */
+for (let i = 0; i < 18; i++) {
+  const m = document.createElement('div');
+  m.className = 'mote';
+  const sz = 2 + Math.random() * 4;
+  m.style.width = sz + 'px';
+  m.style.height = sz + 'px';
+  m.style.left = (Math.random() * 100) + '%';
+  m.style.bottom = '-10px';
+  m.style.opacity = 0.6;
+  m.style.animationDuration = (13 + Math.random() * 14) + 's';
+  m.style.animationDelay = (-Math.random() * 20) + 's';
+  document.body.appendChild(m);
+}
+
+/* ===== 演出 ===== */
+const fx     = document.getElementById('fx');
+const glow   = document.getElementById('glow');
+const toast  = document.getElementById('toast');
+const banner = document.getElementById('banner');
+const app    = document.querySelector('.app');
+
+function featherFall(n) {
+  const set = ['🪶','🪶','🪶','✨','🌟','🍂'];
+  for (let i = 0; i < n; i++) {
+    const f = document.createElement('div');
+    f.className = 'feather';
+    f.textContent = set[Math.floor(Math.random() * set.length)];
+    f.style.left = (Math.random() * 100) + '%';
+    f.style.fontSize = (18 + Math.random() * 22) + 'px';
+    f.style.animationDelay = (Math.random() * 0.8) + 's';
+    f.style.animationDuration = (2.6 + Math.random() * 2.2) + 's';
+    fx.appendChild(f);
+    setTimeout(() => f.remove(), 6000);
+  }
+}
+
+function riseBurst(n) {
+  const set = ['✨','🌟','🪶','💛'];
+  for (let i = 0; i < n; i++) {
+    const s = document.createElement('div');
+    s.className = 'rise';
+    s.textContent = set[Math.floor(Math.random() * set.length)];
+    const fromLeft = i % 2 === 0;
+    const dir = fromLeft ? 1 : -1;
+    s.style.left = fromLeft ? '8%' : 'auto';
+    s.style.right = fromLeft ? 'auto' : '8%';
+    s.style.fontSize = (16 + Math.random() * 20) + 'px';
+    s.style.setProperty('--tx', (dir * (70 + Math.random() * 240)) + 'px');
+    s.style.setProperty('--ty', (-(230 + Math.random() * 300)) + 'px');
+    s.style.setProperty('--tr', (Math.random() * 500 - 250) + 'deg');
+    s.style.animationDelay = (Math.random() * 0.28) + 's';
+    fx.appendChild(s);
+    setTimeout(() => s.remove(), 2100);
+  }
+}
+
+function doGlow() { glow.classList.remove('go'); void glow.offsetWidth; glow.classList.add('go'); }
+
+function sway(el) {
+  el.classList.remove('sway'); void el.offsetWidth; el.classList.add('sway');
+  setTimeout(() => el.classList.remove('sway'), 1100);
+}
+
+function miniCelebrate(text) {
+  featherFall(30); riseBurst(18); sway(app);
+  toast.textContent = text;
+  toast.classList.remove('show'); void toast.offsetWidth; toast.classList.add('show');
+  setTimeout(() => toast.classList.remove('show'), 1500);
+}
+
+function celebrate(bigText, smallText) {
+  doGlow(); featherFall(70); riseBurst(36); sway(app);
+  document.getElementById('bnrBig').textContent = bigText;
+  document.getElementById('bnrSmall').textContent = smallText || '';
+  banner.classList.add('show');
+  setTimeout(() => banner.classList.remove('show'), 2000);
+}
+
+/* ===== ゲーム本体 ===== */
+const KINDS = [
+  { emoji: '🐣',   name: 'ひよこ',      point: 1,  weight: 60, fx: 'none' },
+  { emoji: '🐤🐤', name: 'ふたご',      point: 2,  weight: 27, fx: 'none' },
+  { emoji: '✨',   name: 'きんのひよこ', point: 5,  weight: 10, fx: 'mini' },
+  { emoji: '🐉',   name: 'ドラゴン',    point: 10, weight: 3,  fx: 'big'  }
+];
+const TOTAL_WEIGHT = KINDS.reduce((a, k) => a + k.weight, 0);
+
+function pickKind(rand) {
+  let r = (rand === undefined ? Math.random() : rand) * TOTAL_WEIGHT;
+  for (const k of KINDS) { if (r < k.weight) return k; r -= k.weight; }
+  return KINDS[0];
+}
+
+const GAME_SEC = 20;
+const eggEl    = document.getElementById('egg');
+const cracks   = [...document.querySelectorAll('.crack')];
+const stage    = document.getElementById('stage');
+const revealEl = document.getElementById('reveal');
+const gainEl   = document.getElementById('gain');
+const barFill  = document.getElementById('barFill');
+const ovStart  = document.getElementById('ovStart');
+const ovEnd    = document.getElementById('ovEnd');
+
+let running = false, score = 0, eggCount = 0;
+let hits = 0, needed = 0, timeLeft = GAME_SEC, tick = null, locked = false;
+
+function drawCracks() {
+  const shown = Math.floor(hits / needed * cracks.length);
+  cracks.forEach((c, i) => { c.style.display = i < shown ? 'block' : 'none'; });
+}
+
+function newEgg() {
+  hits = 0;
+  needed = 5 + Math.floor(Math.random() * 3);
+  eggEl.classList.remove('hidden');
+  eggEl.style.transform = '';
+  drawCracks();
+  locked = false;
+}
+
+function shatter() {
+  const rect = stage.getBoundingClientRect();
+  for (let i = 0; i < 16; i++) {
+    const s = document.createElement('div');
+    s.className = 'shard';
+    const size = 10 + Math.random() * 16;
+    s.style.cssText =
+      'width:' + size + 'px;height:' + size * 1.2 + 'px;' +
+      'left:' + (rect.width / 2 - size / 2) + 'px;top:' + (rect.height / 2 - size / 2 - 17) + 'px;' +
+      'background:linear-gradient(150deg,#fffefa,#e6cfa9);' +
+      'border:1.5px solid #b2915f;border-radius:' + (Math.random() * 40) + '% ' + (Math.random() * 40 + 20) + '% 30% 50%;' +
+      'animation:shardFly ' + (0.55 + Math.random() * 0.35).toFixed(2) + 's ease-out forwards';
+    const ang = (i / 16) * Math.PI * 2 + Math.random() * 0.4;
+    s.style.setProperty('--sx', Math.cos(ang) * (90 + Math.random() * 90) + 'px');
+    s.style.setProperty('--sy', (Math.sin(ang) * (90 + Math.random() * 90) + 40) + 'px');
+    s.style.setProperty('--sr', (Math.random() * 720 - 360) + 'deg');
+    stage.appendChild(s);
+    setTimeout(() => s.remove(), 1000);
+  }
+}
+
+function breakEgg() {
+  locked = true;
+  eggEl.classList.add('hidden');
+  shatter();
+
+  const k = pickKind();
+  score += k.point;
+  eggCount++;
+
+  revealEl.textContent = k.emoji;
+  revealEl.classList.remove('go'); void revealEl.offsetWidth; revealEl.classList.add('go');
+
+  gainEl.textContent = '+' + k.point;
+  gainEl.classList.remove('go'); void gainEl.offsetWidth; gainEl.classList.add('go');
+
+  document.getElementById('score').textContent = score;
+  document.getElementById('eggs').textContent  = eggCount;
+
+  if (k.fx === 'mini') miniCelebrate('きんのひよこ！');
+  if (k.fx === 'big')  celebrate('ドラゴン！！', 'たまごに なにが入ってたんだ…');
+
+  setTimeout(() => { if (running) newEgg(); }, 620);
+}
+
+function hitEgg() {
+  if (!running || locked) return;
+  hits++;
+  eggEl.style.setProperty('--tilt', (Math.random() * 8 - 4) + 'deg');
+  eggEl.classList.remove('hit'); void eggEl.offsetWidth; eggEl.classList.add('hit');
+  setTimeout(() => eggEl.classList.remove('hit'), 70);
+  drawCracks();
+  if (hits >= needed) breakEgg();
+}
+
+function endGame() {
+  running = false;
+  clearInterval(tick);
+  eggEl.classList.add('hidden');
+  document.getElementById('finalScore').textContent = score;
+  document.getElementById('finalMsg').textContent =
+    score >= 40 ? 'たまごわりの てんさい' :
+    score >= 25 ? 'なかなか やるね' :
+    score >= 12 ? 'いいちょうし' : 'まだまだ われる';
+  ovEnd.classList.remove('off');
+}
+
+function startGame() {
+  score = 0; eggCount = 0; timeLeft = GAME_SEC; running = true;
+  document.getElementById('score').textContent = 0;
+  document.getElementById('eggs').textContent  = 0;
+  document.getElementById('time').textContent  = GAME_SEC;
+  barFill.style.width = '100%';
+  ovStart.classList.add('off');
+  ovEnd.classList.add('off');
+  newEgg();
+
+  const started = Date.now();
+  clearInterval(tick);
+  tick = setInterval(() => {
+    const elapsed = (Date.now() - started) / 1000;
+    timeLeft = Math.max(0, GAME_SEC - elapsed);
+    document.getElementById('time').textContent = Math.ceil(timeLeft);
+    barFill.style.width = (timeLeft / GAME_SEC * 100) + '%';
+    if (timeLeft <= 0) endGame();
+  }, 100);
+}
+
+stage.addEventListener('pointerdown', hitEgg);
+document.getElementById('btnStart').addEventListener('click', e => { e.stopPropagation(); startGame(); });
+document.getElementById('btnRetry').addEventListener('click', e => { e.stopPropagation(); startGame(); });
+document.addEventListener('keydown', e => {
+  if (e.code === 'Space') { e.preventDefault(); if (running) hitEgg(); else startGame(); }
+});
+</script>
+</body>
+</html>
