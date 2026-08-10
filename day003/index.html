@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>もぐらたたき｜Chuppy Games Day 003</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    font-family: "Hiragino Maru Gothic ProN", "Yu Gothic", system-ui, sans-serif;
+    min-height: 100vh;
+    display: flex; align-items: center; justify-content: center;
+    padding: 18px;
+    color: #4a3524;
+    background: #cfe9f5;
+    overflow: hidden; position: relative; user-select: none;
+    cursor: none;
+  }
+
+  .cloud {
+    position: fixed; background: #fff; border-radius: 999px;
+    opacity: 0.85; pointer-events: none;
+    animation: cloudDrift linear infinite;
+  }
+  .cloud::before, .cloud::after {
+    content: ""; position: absolute; background: #fff; border-radius: 50%;
+  }
+  @keyframes cloudDrift {
+    from { transform: translateX(-24vw); }
+    to   { transform: translateX(124vw); }
+  }
+
+  .app {
+    position: relative; z-index: 3;
+    width: 100%; max-width: 390px;
+    background: #fffdf7;
+    border-radius: 26px;
+    padding: 18px 16px 16px;
+    box-shadow: 0 16px 36px rgba(70,100,120,0.26);
+  }
+
+  h1 { font-size: 26px; text-align: center; letter-spacing: 3px; color: #4a3524; }
+  .sub { text-align: center; font-size: 11px; color: #a0937f; margin: 3px 0 12px; }
+
+  .hud { display: flex; gap: 7px; margin-bottom: 9px; }
+  .hud div { flex: 1; text-align: center; background: #f3efe4; border-radius: 13px; padding: 6px 0 4px; }
+  .hud span { display: block; font-size: 10px; color: #a0937f; }
+  .hud b { font-size: 20px; color: #4a3524; font-variant-numeric: tabular-nums; }
+
+  .bar { height: 8px; background: #e6e0d0; border-radius: 999px; overflow: hidden; margin-bottom: 11px; }
+  .bar i { display: block; height: 100%; width: 100%; background: #7fb549; transition: width 0.1s linear; }
+
+  .field {
+    position: relative; border-radius: 18px; overflow: hidden;
+    height: 322px; cursor: none;
+  }
+
+  .sky { position: absolute; inset: 0; background: #cfe9f5; }
+  .hillFar  { position: absolute; left: -8%; top: 6px;  width: 116%; }
+  .hillNear { position: absolute; left: -8%; top: 26px; width: 116%; }
+  .ground {
+    position: absolute; left: 0; right: 0; bottom: 0; height: 74%;
+    background: #9ccb63;
+    border-radius: 44% 56% 0 0 / 12% 12% 0 0;
+  }
+  .ground::after {
+    content: ""; position: absolute; inset: 0;
+    background:
+      radial-gradient(circle at 18% 30%, rgba(255,255,255,0.16) 0 6px, transparent 7px),
+      radial-gradient(circle at 72% 18%, rgba(255,255,255,0.14) 0 5px, transparent 6px),
+      radial-gradient(circle at 46% 62%, rgba(255,255,255,0.13) 0 7px, transparent 8px),
+      radial-gradient(circle at 88% 74%, rgba(255,255,255,0.13) 0 5px, transparent 6px);
+  }
+
+  .grid {
+    position: absolute; left: 0; right: 0; bottom: 14px;
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    gap: 4px 0; padding: 0 12px;
+  }
+  .hole {
+    position: relative; height: 74px;
+    display: flex; align-items: flex-end; justify-content: center;
+  }
+  .holeArt { position: absolute; bottom: 0; width: 88px; }
+
+  .moleWrap {
+    position: absolute; bottom: 9px;
+    width: 60px; height: 74px;
+    overflow: hidden;
+    display: flex; align-items: flex-end; justify-content: center;
+    pointer-events: none;
+  }
+  .mole {
+    width: 60px; transform: translateY(80px);
+    transition: transform 0.16s cubic-bezier(.3,1.5,.5,1);
+  }
+  .mole.up   { transform: translateY(6px); }
+  .mole.bonk { transform: translateY(20px) scaleY(0.55) scaleX(1.2); transition: transform 0.1s ease-in; }
+
+  .pop {
+    position: absolute; bottom: 54px;
+    font-size: 21px; font-weight: bold; color: #e0872c;
+    pointer-events: none; opacity: 0;
+  }
+  .pop.go { animation: popUp 0.8s ease-out forwards; }
+  @keyframes popUp {
+    0%   { transform: translateY(8px) scale(0.6); opacity: 0; }
+    25%  { transform: translateY(0) scale(1.15); opacity: 1; }
+    100% { transform: translateY(-30px) scale(1); opacity: 0; }
+  }
+
+  #hammer {
+    position: fixed; width: 92px; z-index: 60;
+    pointer-events: none;
+    transform-origin: 78% 82%;
+    transform: rotate(-16deg);
+    transition: transform 0.07s ease-out;
+    margin-left: -14px; margin-top: -58px;
+  }
+  #hammer.swing { transform: rotate(48deg); }
+
+  .overlay {
+    position: absolute; inset: 0; z-index: 20;
+    background: rgba(255,253,247,0.94);
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 11px;
+    text-align: center; padding: 18px; cursor: none;
+  }
+  .overlay.off { display: none; }
+  .overlay .t { font-size: 22px; }
+  .overlay .d { font-size: 13px; color: #a0937f; line-height: 1.8; }
+  .overlay .big { font-size: 46px; color: #e0872c; }
+
+  button.btn {
+    background: #4a3524; color: #fffdf7; border: none;
+    border-radius: 999px; box-shadow: 0 4px 0 #2f2116;
+    cursor: pointer; font-family: inherit; font-weight: bold;
+    font-size: 16px; padding: 12px 32px 10px; pointer-events: auto;
+    transition: transform 0.06s, box-shadow 0.06s;
+  }
+  button.btn:active { transform: translateY(4px); box-shadow: 0 0 0 #2f2116; }
+
+  .legend { margin-top: 10px; font-size: 10.5px; color: #a0937f; text-align: center; line-height: 1.9; }
+
+  /* 演出:土けむりと草 */
+  #fx { position: fixed; inset: 0; pointer-events: none; overflow: hidden; z-index: 90; }
+  .bit { position: absolute; bottom: -24px; animation: bitUp 1.5s cubic-bezier(.15,.6,.35,1) forwards; }
+  @keyframes bitUp {
+    0%   { transform: translate(0,0) rotate(0deg) scale(0.6); opacity: 0; }
+    18%  { opacity: 1; }
+    100% { transform: translate(var(--tx), var(--ty)) rotate(var(--tr)) scale(1.1); opacity: 0; }
+  }
+  .drop { position: absolute; top: -50px; animation: dropDown linear forwards; }
+  @keyframes dropDown {
+    0%   { transform: translateY(0) rotate(0deg); opacity: 0; }
+    10%  { opacity: 1; }
+    100% { transform: translateY(112vh) rotate(500deg); opacity: 0.8; }
+  }
+
+  #glow { position: fixed; inset: 0; z-index: 93; pointer-events: none; opacity: 0;
+          background: radial-gradient(circle at 50% 45%, rgba(255,252,230,0.95) 0%, rgba(255,235,170,0.7) 38%, rgba(255,235,170,0) 74%); }
+  #glow.go { animation: glowOut 0.95s ease-out forwards; }
+  @keyframes glowOut { 0% { opacity: 0; } 22% { opacity: 1; } 100% { opacity: 0; } }
+
+  .sway { animation: swayA 0.45s ease-in-out 2; }
+  @keyframes swayA {
+    0%,100% { transform: rotate(0deg); }
+    25% { transform: rotate(-1.8deg); }
+    75% { transform: rotate(1.8deg); }
+  }
+
+  #toast {
+    position: fixed; left: 50%; top: 14%; transform: translateX(-50%);
+    z-index: 94; display: none;
+    background: #fffdf7; color: #4a3524; border-radius: 999px;
+    padding: 11px 26px; font-size: 18px; font-weight: bold;
+    box-shadow: 0 4px 0 #ddd6c4, 0 12px 24px rgba(70,100,120,0.3);
+  }
+  #toast.show { display: block; animation: toastIn 1.4s ease-out forwards; }
+  @keyframes toastIn {
+    0%   { transform: translateX(-50%) scale(0.4); opacity: 0; }
+    18%  { transform: translateX(-50%) scale(1.08); opacity: 1; }
+    30%,80% { transform: translateX(-50%) scale(1); opacity: 1; }
+    100% { transform: translateX(-50%) translateY(-26px) scale(0.95); opacity: 0; }
+  }
+
+  #banner { position: fixed; inset: 0; z-index: 95; display: none; align-items: center; justify-content: center; pointer-events: none; }
+  #banner.show { display: flex; }
+  .bnr {
+    background: #fffdf7; border-radius: 26px; padding: 22px 38px; text-align: center;
+    box-shadow: 0 8px 0 #ddd6c4, 0 24px 46px rgba(70,100,120,0.4);
+    animation: burstIn 0.55s cubic-bezier(.2,1.7,.4,1);
+  }
+  @keyframes burstIn { 0%{transform:scale(0.4) rotate(-8deg); opacity:0} 100%{transform:scale(1) rotate(-2deg); opacity:1} }
+  .bnr .big { font-size: 38px; font-weight: bold; color: #e0872c; line-height: 1.15; }
+  .bnr .small { font-size: 13px; color: #a0937f; margin-top: 7px; }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <h1>もぐらたたき</h1>
+  <p class="sub">たたくと じかんが のびる　でも だんだん はやく へる</p>
+
+  <div class="hud">
+    <div><span>のこりじかん <em id="drain" style="font-style:normal;color:#e35d5d">×1.0</em></span><b id="time">10.0</b></div>
+    <div><span>たたいたかず</span><b id="hitc">0</b></div>
+    <div><span>つづいたじかん</span><b id="alive">0.0</b></div>
+  </div>
+
+  <div class="bar"><i id="barFill"></i></div>
+
+  <div class="field" id="field">
+    <div class="sky"></div>
+
+    <svg class="hillFar" viewBox="0 0 400 90" xmlns="http://www.w3.org/2000/svg">
+      <path d="M0 90 C60 40 110 26 170 44 C230 62 268 24 330 38 C368 46 386 64 400 90 Z" fill="#8ec46a"/>
+    </svg>
+    <svg class="hillNear" viewBox="0 0 400 90" xmlns="http://www.w3.org/2000/svg">
+      <path d="M0 90 C50 56 96 40 152 56 C214 74 258 44 316 56 C362 66 384 76 400 90 Z" fill="#a4d074"/>
+    </svg>
+
+    <div class="ground"></div>
+    <div class="grid" id="grid"></div>
+
+    <div class="overlay" id="ovStart">
+      <div class="t">もぐらを たたけ！</div>
+      <div class="d">たたくと じかんが のびる。<br>0びょうに なったら おわり。<br>どこまで つづけられるかな?</div>
+      <button class="btn" id="btnStart">スタート</button>
+    </div>
+
+    <div class="overlay off" id="ovEnd">
+      <div class="d">つづいたじかん</div>
+      <div class="big" id="finalScore">0</div>
+      <div class="d" id="finalMsg"></div>
+      <button class="btn" id="btnRetry">もういちど</button>
+    </div>
+  </div>
+
+  <p class="legend">
+    ちゃいろ +1びょう　　ねぼすけ（グレー）+3びょう<br>
+    きんの もぐら +10びょう（ごくまれ）　じかんは 20びょうまで
+  </p>
+</div>
+
+<svg id="hammer" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+  <rect x="52" y="46" width="15" height="66" rx="7" fill="#f2c94c" stroke="#c9a02f" stroke-width="3"/>
+  <rect x="14" y="10" width="92" height="42" rx="15" fill="#e35d5d" stroke="#b83f3f" stroke-width="3"/>
+  <g stroke="#b83f3f" stroke-width="3" stroke-linecap="round">
+    <path d="M34 16 L34 46"/><path d="M52 16 L52 46"/><path d="M70 16 L70 46"/><path d="M88 16 L88 46"/>
+  </g>
+</svg>
+
+<div id="fx"></div>
+<div id="glow"></div>
+<div id="toast"></div>
+<div id="banner"><div class="bnr"><div class="big" id="bnrBig"></div><div class="small" id="bnrSmall"></div></div></div>
+
+<script>
+/* ===== 雲 ===== */
+[[54,18,26,'70s'],[38,44,15,'95s'],[64,10,34,'120s']].forEach(([w,top,h,dur],i) => {
+  const c = document.createElement('div');
+  c.className = 'cloud';
+  c.style.width = w + 'px'; c.style.height = h + 'px';
+  c.style.top = top + '%'; c.style.left = '0';
+  c.style.animationDuration = dur;
+  c.style.animationDelay = (-i * 22) + 's';
+  document.body.appendChild(c);
+});
+
+/* ===== 演出 ===== */
+const fx     = document.getElementById('fx');
+const glow   = document.getElementById('glow');
+const toast  = document.getElementById('toast');
+const banner = document.getElementById('banner');
+const app     = document.querySelector('.app');
+
+function soilBurst(n) {
+  const set = ['🟤','🌿','🍃','⭐️'];
+  for (let i = 0; i < n; i++) {
+    const b = document.createElement('div');
+    b.className = 'bit';
+    b.textContent = set[Math.floor(Math.random() * set.length)];
+    const fromLeft = i % 2 === 0;
+    const dir = fromLeft ? 1 : -1;
+    b.style.left = fromLeft ? '8%' : 'auto';
+    b.style.right = fromLeft ? 'auto' : '8%';
+    b.style.fontSize = (14 + Math.random() * 18) + 'px';
+    b.style.setProperty('--tx', (dir * (70 + Math.random() * 240)) + 'px');
+    b.style.setProperty('--ty', (-(230 + Math.random() * 300)) + 'px');
+    b.style.setProperty('--tr', (Math.random() * 500 - 250) + 'deg');
+    b.style.animationDelay = (Math.random() * 0.28) + 's';
+    fx.appendChild(b);
+    setTimeout(() => b.remove(), 2100);
+  }
+}
+
+function leafFall(n) {
+  const set = ['🍃','🌿','⭐️','🟤'];
+  for (let i = 0; i < n; i++) {
+    const d = document.createElement('div');
+    d.className = 'drop';
+    d.textContent = set[Math.floor(Math.random() * set.length)];
+    d.style.left = (Math.random() * 100) + '%';
+    d.style.fontSize = (16 + Math.random() * 20) + 'px';
+    d.style.animationDelay = (Math.random() * 0.8) + 's';
+    d.style.animationDuration = (2.2 + Math.random() * 1.8) + 's';
+    fx.appendChild(d);
+    setTimeout(() => d.remove(), 5000);
+  }
+}
+
+function doGlow() { glow.classList.remove('go'); void glow.offsetWidth; glow.classList.add('go'); }
+function sway(el) {
+  el.classList.remove('sway'); void el.offsetWidth; el.classList.add('sway');
+  setTimeout(() => el.classList.remove('sway'), 1000);
+}
+
+function miniCelebrate(text) {
+  soilBurst(20); leafFall(28); sway(app);
+  toast.textContent = text;
+  toast.classList.remove('show'); void toast.offsetWidth; toast.classList.add('show');
+  setTimeout(() => toast.classList.remove('show'), 1500);
+}
+
+function celebrate(bigText, smallText) {
+  doGlow(); soilBurst(38); leafFall(66); sway(app);
+  document.getElementById('bnrBig').textContent = bigText;
+  document.getElementById('bnrSmall').textContent = smallText || '';
+  banner.classList.add('show');
+  setTimeout(() => banner.classList.remove('show'), 1950);
+}
+
+/* ===== もぐらの絵 ===== */
+const MOLE_COLORS = {
+  brown: { fur: '#a5764f', dark: '#8b5f3a' },
+  gray:  { fur: '#a8a6ae', dark: '#84828c' },
+  gold:  { fur: '#e0b34a', dark: '#c1912c' }
+};
+
+function moleMarkup(type) {
+  const c = MOLE_COLORS[type];
+  const eyes = type === 'gray'
+    ? '<path d="M31 47 q5 4.5 10 0" stroke="#3b2c1e" stroke-width="3" fill="none" stroke-linecap="round"/>'
+      + '<path d="M59 47 q5 4.5 10 0" stroke="#3b2c1e" stroke-width="3" fill="none" stroke-linecap="round"/>'
+    : '<circle cx="36" cy="46" r="4" fill="#3b2c1e"/><circle cx="64" cy="46" r="4" fill="#3b2c1e"/>'
+      + '<circle cx="37.4" cy="44.6" r="1.3" fill="#fff"/><circle cx="65.4" cy="44.6" r="1.3" fill="#fff"/>';
+  const crown = type === 'gold'
+    ? '<path d="M38 16 L44 24 L50 14 L56 24 L62 16 L60 28 L40 28 Z" fill="#ffd75e" stroke="#c1912c" stroke-width="2.5" stroke-linejoin="round"/>'
+    : '';
+  const sparkle = type === 'gold'
+    ? '<g fill="#fff8b0" stroke="#c1912c" stroke-width="1.6" stroke-linejoin="round">'
+      + '<path d="M17 34 l3 7 7 3 -7 3 -3 7 -3 -7 -7 -3 7 -3 z"/>'
+      + '<path d="M85 28 l2.4 5.6 5.6 2.4 -5.6 2.4 -2.4 5.6 -2.4 -5.6 -5.6 -2.4 5.6 -2.4 z"/>'
+      + '</g>'
+    : '';
+  const zzz = type === 'gray'
+    ? '<g fill="#84828c" font-family="sans-serif" font-weight="bold">'
+      + '<text x="72" y="30" font-size="15">z</text>'
+      + '<text x="84" y="20" font-size="11">z</text>'
+      + '</g>'
+    : '';
+  return ''
+    + '<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">'
+    +   crown + sparkle
+    +   '<path d="M12 100 C12 46 26 26 50 26 C74 26 88 46 88 100 Z" fill="' + c.fur + '"/>'
+    +   '<path d="M12 100 C12 46 26 26 50 26 C74 26 88 46 88 100" fill="none" stroke="' + c.dark + '" stroke-width="3"/>'
+    +   '<ellipse cx="50" cy="72" rx="25" ry="19" fill="#f7ecd9"/>'
+    +   '<ellipse cx="50" cy="61" rx="6.5" ry="5" fill="#3b2c1e"/>'
+    +   '<path d="M50 66 v5" stroke="#3b2c1e" stroke-width="2.6" stroke-linecap="round"/>'
+    +   '<path d="M50 71 q-6 6 -11 1" stroke="#3b2c1e" stroke-width="2.6" fill="none" stroke-linecap="round"/>'
+    +   '<path d="M50 71 q6 6 11 1" stroke="#3b2c1e" stroke-width="2.6" fill="none" stroke-linecap="round"/>'
+    +   '<g stroke="#3b2c1e" stroke-width="2" stroke-linecap="round" opacity="0.75">'
+    +     '<path d="M26 66 h-11"/><path d="M26 73 h-12"/>'
+    +     '<path d="M74 66 h11"/><path d="M74 73 h12"/>'
+    +   '</g>'
+    +   eyes
+    +   zzz
+    + '</svg>';
+}
+
+const HOLE_SVG =
+  '<svg class="holeArt" viewBox="0 0 120 44" xmlns="http://www.w3.org/2000/svg">'
++   '<ellipse cx="60" cy="24" rx="56" ry="19" fill="#c9a06a"/>'
++   '<ellipse cx="60" cy="22" rx="45" ry="14" fill="#6b4a30"/>'
++ '</svg>';
+
+/* ===== ゲーム本体 ===== */
+const TYPES = [
+  { key: 'brown', point: 1,  weight: 92,  life: [820, 1150], fx: 'none' },
+  { key: 'gray',  point: 3,  weight: 6.5, life: [1500, 1900], fx: 'mini' },
+  { key: 'gold',  point: 10, weight: 1.5, life: [800,  1050], fx: 'big'  }
+];
+const TOTAL_W = TYPES.reduce((a, t) => a + t.weight, 0);
+
+function pickType(rand) {
+  let r = (rand === undefined ? Math.random() : rand) * TOTAL_W;
+  for (const t of TYPES) { if (r < t.weight) return t; r -= t.weight; }
+  return TYPES[0];
+}
+
+const START_SEC = 10;
+const MAX_SEC   = 20;
+const HOLES = 9;
+const grid    = document.getElementById('grid');
+const field   = document.getElementById('field');
+const barFill = document.getElementById('barFill');
+const ovStart = document.getElementById('ovStart');
+const ovEnd   = document.getElementById('ovEnd');
+const hammer  = document.getElementById('hammer');
+
+let running = false, hitCount = 0;
+let timeLeft = START_SEC, aliveSec = 0, lastFrame = 0;
+let slots = [], spawnTimer = null, tick = null, startedAt = 0;
+
+for (let i = 0; i < HOLES; i++) {
+  const hole = document.createElement('div');
+  hole.className = 'hole';
+  hole.innerHTML = HOLE_SVG
+    + '<div class="moleWrap"><div class="mole" data-i="' + i + '"></div></div>'
+    + '<div class="pop"></div>';
+  grid.appendChild(hole);
+  slots.push({ el: hole, mole: hole.querySelector('.mole'), pop: hole.querySelector('.pop'),
+               active: false, type: null, timer: null });
+}
+
+function hideMole(s) {
+  s.active = false;
+  s.mole.classList.remove('up', 'bonk');
+  clearTimeout(s.timer);
+}
+
+function spawn() {
+  if (!running) return;
+  const free = slots.filter(s => !s.active);
+  if (free.length) {
+    const s = free[Math.floor(Math.random() * free.length)];
+    const t = pickType();
+    s.type = t;
+    s.active = true;
+    s.mole.innerHTML = moleMarkup(t.key);
+    s.mole.classList.remove('bonk');
+    void s.mole.offsetWidth;
+    s.mole.classList.add('up');
+    const life = t.life[0] + Math.random() * (t.life[1] - t.life[0]);
+    s.timer = setTimeout(() => { if (s.active) hideMole(s); }, life);
+  }
+  const elapsed = (Date.now() - startedAt) / 1000;
+  const ratio = Math.min(1, elapsed / 45);
+  const gap = 640 - 300 * ratio;
+  spawnTimer = setTimeout(spawn, gap + Math.random() * 180);
+}
+
+function whack(s) {
+  if (!running || !s.active) return;
+  const t = s.type;
+  s.active = false;
+  clearTimeout(s.timer);
+  s.mole.classList.add('bonk');
+  setTimeout(() => { s.mole.classList.remove('up', 'bonk'); }, 130);
+
+  timeLeft = Math.min(MAX_SEC, timeLeft + t.point);
+  hitCount++;
+  document.getElementById('hitc').textContent = hitCount;
+
+  s.pop.textContent = '+' + t.point + 'びょう';
+  s.pop.classList.remove('go'); void s.pop.offsetWidth; s.pop.classList.add('go');
+
+  if (t.fx === 'mini') miniCelebrate('ねぼすけ もぐら ＋3びょう！');
+  if (t.fx === 'big')  celebrate('きんの もぐら！', 'まさかの ＋10びょう');
+}
+
+function swingHammer() {
+  hammer.classList.add('swing');
+  setTimeout(() => hammer.classList.remove('swing'), 110);
+}
+
+field.addEventListener('pointerdown', e => {
+  swingHammer();
+  if (!running) return;
+  const hole = e.target.closest('.hole');
+  if (!hole) return;
+  const s = slots.find(x => x.el === hole);
+  if (s) whack(s);
+});
+
+document.addEventListener('pointermove', e => {
+  hammer.style.left = e.clientX + 'px';
+  hammer.style.top  = e.clientY + 'px';
+});
+document.addEventListener('pointerdown', e => {
+  hammer.style.left = e.clientX + 'px';
+  hammer.style.top  = e.clientY + 'px';
+  swingHammer();
+});
+
+function endGame() {
+  running = false;
+  clearInterval(tick); clearTimeout(spawnTimer);
+  slots.forEach(hideMole);
+  document.getElementById('finalScore').innerHTML =
+    aliveSec.toFixed(1) + '<i style="font-size:24px;font-style:normal">びょう</i>';
+  document.getElementById('finalMsg').textContent =
+    (aliveSec >= 45 ? 'もぐら たたきの めいじん' :
+     aliveSec >= 30 ? 'なかなか やるね' :
+     aliveSec >= 18 ? 'いい ちょうし' : 'もぐらの かち')
+    + '　（' + hitCount + 'ひき）';
+  ovEnd.classList.remove('off');
+}
+
+function startGame() {
+  hitCount = 0; running = true;
+  timeLeft = START_SEC; aliveSec = 0;
+  document.getElementById('hitc').textContent  = 0;
+  document.getElementById('time').textContent  = timeLeft.toFixed(1);
+  document.getElementById('alive').textContent = '0.0';
+  document.getElementById('drain').textContent = '×1.0';
+  barFill.style.width = (START_SEC / MAX_SEC * 100) + '%';
+  slots.forEach(hideMole);
+  ovStart.classList.add('off');
+  ovEnd.classList.add('off');
+
+  startedAt = Date.now();
+  lastFrame = Date.now();
+  clearTimeout(spawnTimer);
+  spawn();
+
+  clearInterval(tick);
+  tick = setInterval(() => {
+    const now = Date.now();
+    const dt = (now - lastFrame) / 1000;
+    lastFrame = now;
+
+    const drain = 1 + aliveSec / 20;
+    timeLeft = Math.max(0, timeLeft - dt * drain);
+    aliveSec += dt;
+
+    document.getElementById('time').textContent  = timeLeft.toFixed(1);
+    document.getElementById('alive').textContent = aliveSec.toFixed(1);
+    document.getElementById('drain').textContent = '×' + drain.toFixed(1);
+    barFill.style.width = (timeLeft / MAX_SEC * 100) + '%';
+    barFill.style.background = timeLeft <= 3 ? '#e35d5d' : '#7fb549';
+
+    if (timeLeft <= 0) endGame();
+  }, 60);
+}
+
+document.getElementById('btnStart').addEventListener('click', e => { e.stopPropagation(); startGame(); });
+document.getElementById('btnRetry').addEventListener('click', e => { e.stopPropagation(); startGame(); });
+</script>
+</body>
+</html>
