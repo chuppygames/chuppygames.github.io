@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ねこの さかなとり｜Chuppy Games Day 004</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    font-family: "Hiragino Maru Gothic ProN", "Yu Gothic", system-ui, sans-serif;
+    min-height: 100vh;
+    display: flex; align-items: center; justify-content: center;
+    padding: 18px;
+    color: #4a6a7c;
+    background: linear-gradient(180deg, #ffe6ee 0%, #ffeef4 30%, #e3f4fb 65%, #cdeaf6 100%);
+    overflow: hidden; position: relative; user-select: none;
+  }
+
+  .app {
+    position: relative; z-index: 3;
+    width: 100%; max-width: 400px;
+    background: #fffdfb;
+    border-radius: 28px;
+    padding: 18px 16px 16px;
+    box-shadow: 0 16px 38px rgba(120,150,170,0.24);
+  }
+
+  h1 { font-size: 25px; text-align: center; letter-spacing: 2px; color: #f2879b; }
+  .sub { text-align: center; font-size: 11px; color: #9db3c0; margin: 3px 0 12px; }
+
+  .hud {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 10px; padding: 0 4px;
+  }
+  .hud .s { font-size: 14px; color: #7e97a6; }
+  .hud .s b { font-size: 24px; color: #f2879b; }
+  .hud .s i { font-size: 12px; font-style: normal; }
+  .hud .l { font-size: 20px; letter-spacing: 3px; }
+
+  .stage {
+    position: relative; height: 400px; border-radius: 20px; overflow: hidden;
+    background: linear-gradient(180deg, #ffeaf1 0%, #eaf7fd 38%, #c4e8f6 62%, #a2d9ee 100%);
+    touch-action: none;
+  }
+  .cloud { position: absolute; background: #fff; border-radius: 999px; opacity: 0.85; }
+  @keyframes cloudMove { from { transform: translateX(-80px); } to { transform: translateX(440px); } }
+  .wave {
+    position: absolute; left: -6%; right: -6%; bottom: 31%;
+    height: 22px; background: #c4e8f6; border-radius: 50%;
+  }
+  .sea { position: absolute; left: 0; right: 0; bottom: 0; height: 34%; background: #a2d9ee; }
+
+  #cat { position: absolute; bottom: 22px; left: 50%; width: 90px; }
+
+  .pop { position: absolute; font-size: 19px; font-weight: bold; pointer-events: none; }
+  .pop.go { animation: popUp 0.85s ease-out forwards; }
+  @keyframes popUp {
+    0%   { transform: translateY(0) scale(0.6); opacity: 0; }
+    25%  { transform: translateY(-6px) scale(1.15); opacity: 1; }
+    100% { transform: translateY(-40px) scale(1); opacity: 0; }
+  }
+
+  @keyframes shakeX { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-7px)} 75%{transform:translateX(7px)} }
+
+  .overlay {
+    position: absolute; inset: 0; z-index: 12;
+    background: rgba(255,253,251,0.94);
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 13px;
+    text-align: center; padding: 22px;
+  }
+  .overlay.off { display: none; }
+  .overlay .t { font-size: 23px; color: #4a6a7c; }
+  .overlay .d { font-size: 14px; color: #9db3c0; line-height: 1.95; }
+
+  button.btn {
+    background: #f2879b; color: #fff; border: none;
+    border-radius: 999px; box-shadow: 0 4px 0 #d96a80;
+    cursor: pointer; font-family: inherit; font-weight: bold;
+    font-size: 17px; padding: 13px 34px 11px;
+    transition: transform 0.06s, box-shadow 0.06s;
+  }
+  button.btn:active { transform: translateY(4px); box-shadow: 0 0 0 #d96a80; }
+
+  .pad { display: flex; gap: 11px; margin-top: 11px; }
+  .pad button {
+    flex: 1; padding: 16px 0; font-size: 26px;
+    border: none; border-radius: 18px;
+    background: #ffe3ea; color: #d96a80;
+    box-shadow: 0 4px 0 #f5c8d3; cursor: pointer; font-family: inherit;
+  }
+  .pad button:active { transform: translateY(4px); box-shadow: 0 0 0 #f5c8d3; }
+
+  .legend { margin-top: 10px; font-size: 11px; color: #9db3c0; text-align: center; line-height: 1.9; }
+
+  /* 演出:しゃぼん玉と貝がら */
+  #fx { position: fixed; inset: 0; pointer-events: none; overflow: hidden; z-index: 90; }
+  .bub { position: absolute; bottom: -30px; animation: bubUp 1.6s cubic-bezier(.15,.6,.35,1) forwards; }
+  @keyframes bubUp {
+    0%   { transform: translate(0,0) rotate(0deg) scale(0.6); opacity: 0; }
+    18%  { opacity: 1; }
+    100% { transform: translate(var(--tx), var(--ty)) rotate(var(--tr)) scale(1.1); opacity: 0; }
+  }
+  .drop { position: absolute; top: -50px; animation: dropDown linear forwards; }
+  @keyframes dropDown {
+    0%   { transform: translateY(0) rotate(0deg); opacity: 0; }
+    10%  { opacity: 1; }
+    100% { transform: translateY(112vh) rotate(420deg); opacity: 0.85; }
+  }
+
+  #glow { position: fixed; inset: 0; z-index: 93; pointer-events: none; opacity: 0;
+          background: radial-gradient(circle at 50% 45%, rgba(255,245,250,0.96) 0%, rgba(255,214,230,0.72) 38%, rgba(255,214,230,0) 74%); }
+  #glow.go { animation: glowOut 0.95s ease-out forwards; }
+  @keyframes glowOut { 0% { opacity: 0; } 22% { opacity: 1; } 100% { opacity: 0; } }
+
+  .sway { animation: swayA 0.45s ease-in-out 2; }
+  @keyframes swayA {
+    0%,100% { transform: rotate(0deg); }
+    25% { transform: rotate(-1.8deg); }
+    75% { transform: rotate(1.8deg); }
+  }
+
+  #toast {
+    position: fixed; left: 50%; top: 14%; transform: translateX(-50%);
+    z-index: 94; display: none;
+    background: #fffdfb; color: #f2879b; border-radius: 999px;
+    padding: 11px 26px; font-size: 18px; font-weight: bold;
+    box-shadow: 0 4px 0 #f5d3dd, 0 12px 24px rgba(120,150,170,0.3);
+  }
+  #toast.show { display: block; animation: toastIn 1.4s ease-out forwards; }
+  @keyframes toastIn {
+    0%   { transform: translateX(-50%) scale(0.4); opacity: 0; }
+    18%  { transform: translateX(-50%) scale(1.08); opacity: 1; }
+    30%,80% { transform: translateX(-50%) scale(1); opacity: 1; }
+    100% { transform: translateX(-50%) translateY(-26px) scale(0.95); opacity: 0; }
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <h1>ねこの さかなとり</h1>
+  <p class="sub">やじるしキー か した の ボタンで うごかせるよ</p>
+
+  <div class="hud">
+    <div class="s">とった さかな <b id="score">0</b><i> / 10</i></div>
+    <div class="l" id="life">🩷🩷🩷</div>
+  </div>
+
+  <div class="stage" id="stage">
+    <div class="cloud" style="top:30px;left:14%;width:56px;height:20px;animation:cloudMove 26s linear infinite"></div>
+    <div class="cloud" style="top:66px;left:62%;width:40px;height:15px;opacity:.75;animation:cloudMove 38s linear infinite"></div>
+    <div class="wave"></div>
+    <div class="sea"></div>
+
+    <div id="fishLayer"></div>
+    <div id="cat"></div>
+    <div id="pops"></div>
+
+    <div class="overlay" id="ov">
+      <div class="t" id="ovT">ねこの さかなとり</div>
+      <div class="d" id="ovD">おちてくる さかなを<br>ねこで キャッチしよう！<br>10ぴき とったら クリア だよ</div>
+      <button class="btn" id="btn">はじめる</button>
+    </div>
+  </div>
+
+  <div class="pad">
+    <button id="bl">←</button>
+    <button id="br">→</button>
+  </div>
+
+  <p class="legend">
+    いろで はやさが ちがうよ<br>
+    <b style="color:#f28aa4">ピンク</b> ゆっくり ▸
+    <b style="color:#8fd4a8">みどり</b> ▸
+    <b style="color:#b39fe0">むらさき</b> ▸
+    <b style="color:#7cc4de">みずいろ</b> はやい<br>
+    <b style="color:#e0b02c">きいろ</b> は とびきり はやい！ にがしても 🩷 は へらない<br>
+    きんの さかなは 2ひきぶん　　ほかの さかなを のがすと 🩷 が へるよ
+  </p>
+</div>
+
+<div id="fx"></div>
+<div id="glow"></div>
+<div id="toast"></div>
+
+<script>
+/* ===== 演出 ===== */
+const fx    = document.getElementById('fx');
+const glow  = document.getElementById('glow');
+const toast = document.getElementById('toast');
+const app   = document.querySelector('.app');
+
+function bubbleBurst(n) {
+  const set = ['🫧','🐚','⭐️','🩷'];
+  for (let i = 0; i < n; i++) {
+    const b = document.createElement('div');
+    b.className = 'bub';
+    b.textContent = set[Math.floor(Math.random() * set.length)];
+    const fromLeft = i % 2 === 0, dir = fromLeft ? 1 : -1;
+    b.style.left  = fromLeft ? '8%' : 'auto';
+    b.style.right = fromLeft ? 'auto' : '8%';
+    b.style.fontSize = (14 + Math.random() * 18) + 'px';
+    b.style.setProperty('--tx', (dir * (70 + Math.random() * 240)) + 'px');
+    b.style.setProperty('--ty', (-(230 + Math.random() * 300)) + 'px');
+    b.style.setProperty('--tr', (Math.random() * 400 - 200) + 'deg');
+    b.style.animationDelay = (Math.random() * 0.28) + 's';
+    fx.appendChild(b);
+    setTimeout(() => b.remove(), 2200);
+  }
+}
+
+function petalFall(n) {
+  const set = ['🫧','⭐️','🩷','🐚'];
+  for (let i = 0; i < n; i++) {
+    const d = document.createElement('div');
+    d.className = 'drop';
+    d.textContent = set[Math.floor(Math.random() * set.length)];
+    d.style.left = (Math.random() * 100) + '%';
+    d.style.fontSize = (16 + Math.random() * 20) + 'px';
+    d.style.animationDelay = (Math.random() * 0.8) + 's';
+    d.style.animationDuration = (2.2 + Math.random() * 1.8) + 's';
+    fx.appendChild(d);
+    setTimeout(() => d.remove(), 5000);
+  }
+}
+
+function doGlow() { glow.classList.remove('go'); void glow.offsetWidth; glow.classList.add('go'); }
+function sway(el) {
+  el.classList.remove('sway'); void el.offsetWidth; el.classList.add('sway');
+  setTimeout(() => el.classList.remove('sway'), 1000);
+}
+function miniCelebrate(text) {
+  bubbleBurst(20); petalFall(26); sway(app);
+  toast.textContent = text;
+  toast.classList.remove('show'); void toast.offsetWidth; toast.classList.add('show');
+  setTimeout(() => toast.classList.remove('show'), 1500);
+}
+function bigCelebrate() {
+  doGlow(); bubbleBurst(38); petalFall(64); sway(app);
+}
+
+/* ===== 絵 ===== */
+function catSVG() {
+  return '<svg viewBox="0 0 100 78" xmlns="http://www.w3.org/2000/svg">'
+  + '<path d="M20 30 L14 8 L36 20 Z" fill="#f9e4cf" stroke="#e0c3a6" stroke-width="2.5" stroke-linejoin="round"/>'
+  + '<path d="M80 30 L86 8 L64 20 Z" fill="#f9e4cf" stroke="#e0c3a6" stroke-width="2.5" stroke-linejoin="round"/>'
+  + '<path d="M23 27 L20 15 L31 21 Z" fill="#f7b6c2"/><path d="M77 27 L80 15 L69 21 Z" fill="#f7b6c2"/>'
+  + '<circle cx="50" cy="44" r="30" fill="#f9e4cf" stroke="#e0c3a6" stroke-width="2.5"/>'
+  + '<circle cx="39" cy="41" r="4.2" fill="#5b4636"/><circle cx="61" cy="41" r="4.2" fill="#5b4636"/>'
+  + '<circle cx="40.4" cy="39.4" r="1.5" fill="#fff"/><circle cx="62.4" cy="39.4" r="1.5" fill="#fff"/>'
+  + '<circle cx="28" cy="50" r="5.5" fill="#ffc9d4" opacity=".8"/><circle cx="72" cy="50" r="5.5" fill="#ffc9d4" opacity=".8"/>'
+  + '<path d="M50 50 l-4 4 h8 z" fill="#f2879b"/>'
+  + '<path d="M50 55 q-6 6 -11 1 M50 55 q6 6 11 1" stroke="#5b4636" stroke-width="2.4" fill="none" stroke-linecap="round"/>'
+  + '<g stroke="#c7ab8f" stroke-width="1.8" stroke-linecap="round"><path d="M20 44 h-9"/><path d="M20 51 h-10"/><path d="M80 44 h9"/><path d="M80 51 h10"/></g>'
+  + '<ellipse cx="26" cy="72" rx="11" ry="7" fill="#f9e4cf" stroke="#e0c3a6" stroke-width="2"/>'
+  + '<ellipse cx="74" cy="72" rx="11" ry="7" fill="#f9e4cf" stroke="#e0c3a6" stroke-width="2"/>'
+  + '<circle cx="26" cy="72" r="3.4" fill="#f7b6c2"/><circle cx="74" cy="72" r="3.4" fill="#f7b6c2"/>'
+  + '</svg>';
+}
+
+function fishSVG(c, gold) {
+  const crown = gold
+    ? '<path d="M22 2 L26 8 L30 0 L34 8 L38 2 L37 11 L23 11 Z" fill="#ffd75e" stroke="#e0b02c" stroke-width="1.8" stroke-linejoin="round"/>'
+    : '';
+  return '<svg viewBox="0 0 66 46" xmlns="http://www.w3.org/2000/svg">'
+  + crown
+  + '<path d="M52 23 L64 12 L64 34 Z" fill="' + c[0] + '" stroke="' + c[1] + '" stroke-width="2.2" stroke-linejoin="round"/>'
+  + '<ellipse cx="28" cy="23" rx="26" ry="19" fill="' + c[0] + '" stroke="' + c[1] + '" stroke-width="2.2"/>'
+  + '<path d="M28 6 q6 -8 12 -2" fill="' + c[0] + '" stroke="' + c[1] + '" stroke-width="2.2" stroke-linejoin="round"/>'
+  + '<circle cx="17" cy="19" r="3.6" fill="#5b4636"/><circle cx="18.2" cy="17.8" r="1.3" fill="#fff"/>'
+  + '<path d="M13 28 q6 6 12 0" stroke="#5b4636" stroke-width="2.2" fill="none" stroke-linecap="round"/>'
+  + '<circle cx="9" cy="27" r="4" fill="#fff" opacity=".45"/>'
+  + '<ellipse cx="36" cy="26" rx="7" ry="5" fill="#fff" opacity=".3"/>'
+  + '</svg>';
+}
+
+/* ===== ゲーム ===== */
+/* 色ごとに おちる はやさ が ちがう */
+const COLORS = [
+  { c: ['#ffb3c7','#f28aa4'], v: 48,  r: 10 },  /* ピンク    いちばん ゆっくり */
+  { c: ['#b9e8c9','#8fd4a8'], v: 62,  r: 12 },  /* みどり    ゆっくり */
+  { c: ['#d3c1f0','#b39fe0'], v: 82,  r: 14 },  /* むらさき  ふつう */
+  { c: ['#a8dcf0','#7cc4de'], v: 100, r: 16 }   /* みずいろ  はやい */
+];
+/* きいろ は とびきり はやい ボーナスの さかな。にがしても ライフは へらない */
+const FAST = { c: ['#ffe08a','#f0c454'], v: 178, r: 26 };
+const GOLD = { c: ['#ffd75e','#e0b02c'], v: 76,  r: 12 };
+const GOAL = 10, GOLD_RATE = 0.08, FAST_RATE = 0.16;
+
+const stage     = document.getElementById('stage');
+const fishLayer = document.getElementById('fishLayer');
+const catEl     = document.getElementById('cat');
+const pops      = document.getElementById('pops');
+const ov        = document.getElementById('ov');
+const btn       = document.getElementById('btn');
+const scoreEl   = document.getElementById('score');
+const lifeEl    = document.getElementById('life');
+
+catEl.innerHTML = catSVG();
+
+let W = 360, H = 400, CATY = 352;
+let running = false, catX = 180, dir = 0, score = 0, life = 3;
+let fishes = [], spawnT = 0, last = 0, raf = null;
+
+function measure() { W = stage.clientWidth; H = stage.clientHeight; CATY = H - 48; }
+measure();
+window.addEventListener('resize', measure);
+
+function drawLife() { lifeEl.textContent = '🩷'.repeat(life) + '🖤'.repeat(3 - life); }
+
+function addPop(x, y, txt, col) {
+  const p = document.createElement('div');
+  p.className = 'pop';
+  p.textContent = txt;
+  p.style.left = (x - 14) + 'px';
+  p.style.top = y + 'px';
+  p.style.color = col;
+  pops.appendChild(p);
+  void p.offsetWidth; p.classList.add('go');
+  setTimeout(() => p.remove(), 900);
+}
+
+function spawn() {
+  const roll = Math.random();
+  const gold = roll < GOLD_RATE;
+  const fast = !gold && roll < GOLD_RATE + FAST_RATE;
+  const k = gold ? GOLD : fast ? FAST : COLORS[Math.floor(Math.random() * COLORS.length)];
+  const d = document.createElement('div');
+  d.style.cssText = 'position:absolute;width:52px;left:' + (18 + Math.random() * (W - 88)) + 'px;top:-46px';
+  d.innerHTML = fishSVG(k.c, gold);
+  fishLayer.appendChild(d);
+  fishes.push({ el: d, x: parseFloat(d.style.left), y: -46,
+                v: k.v + Math.random() * k.r, sw: Math.random() * 2, gold: gold, fast: fast });
+}
+
+function loop(t) {
+  if (!running) return;
+  const dt = Math.min(0.05, (t - last) / 1000); last = t;
+
+  catX = Math.max(46, Math.min(W - 46, catX + dir * 290 * dt));
+  catEl.style.left = catX + 'px';
+  catEl.style.transform = 'translateX(-50%) rotate(' + (dir * 5) + 'deg)';
+
+  spawnT -= dt;
+  if (spawnT <= 0) { spawn(); spawnT = 0.95 + Math.random() * 0.55; }
+
+  for (let i = fishes.length - 1; i >= 0; i--) {
+    const f = fishes[i];
+    f.y += f.v * dt;
+    f.sw += dt * 3;
+    f.el.style.top = f.y + 'px';
+    f.el.style.transform = 'rotate(' + Math.sin(f.sw) * 10 + 'deg)';
+
+    if (f.y > CATY - 50 && f.y < CATY + 20 && Math.abs((f.x + 26) - catX) < 58) {
+      const gain = f.gold ? 2 : 1;
+      addPop(f.x + 26, f.y, '+' + gain, f.gold ? '#e0b02c' : f.fast ? '#f0c454' : '#f2879b');
+      f.el.remove(); fishes.splice(i, 1);
+      score = Math.min(GOAL, score + gain);
+      scoreEl.textContent = score;
+      if (f.gold) miniCelebrate('きんの さかな！');
+      if (f.fast) miniCelebrate('はやい さかな とれた！');
+      if (score >= GOAL) { finish(true); return; }
+      continue;
+    }
+    if (f.y > H) {
+      f.el.remove(); fishes.splice(i, 1);
+      if (f.fast) continue;          /* きいろは ボーナス。にがしても ライフは へらない */
+      life--; drawLife();
+      stage.style.animation = 'shakeX .3s';
+      setTimeout(() => { stage.style.animation = ''; }, 320);
+      if (life <= 0) { finish(false); return; }
+    }
+  }
+  raf = requestAnimationFrame(loop);
+}
+
+function finish(win) {
+  running = false;
+  cancelAnimationFrame(raf);
+  fishes.forEach(f => f.el.remove()); fishes = [];
+  document.getElementById('ovT').textContent = win ? 'クリア！' : 'ざんねん…';
+  document.getElementById('ovT').style.color = win ? '#f2879b' : '#7e97a6';
+  document.getElementById('ovD').innerHTML = win
+    ? 'さかなを 10ぴき とれたね！<br>ねこも おおよろこび'
+    : 'さかなを ' + score + 'ひき とれたよ<br>もういちど やってみる?';
+  btn.textContent = 'もう一度';
+  ov.classList.remove('off');
+  if (win) bigCelebrate();
+}
+
+function start() {
+  measure();
+  score = 0; life = 3; dir = 0; spawnT = 0.4;
+  fishes.forEach(f => f.el.remove()); fishes = [];
+  catX = W / 2;
+  scoreEl.textContent = 0; drawLife();
+  ov.classList.add('off');
+  running = true; last = performance.now();
+  raf = requestAnimationFrame(loop);
+}
+
+btn.addEventListener('click', start);
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'ArrowLeft')  { e.preventDefault(); dir = -1; }
+  if (e.key === 'ArrowRight') { e.preventDefault(); dir = 1; }
+});
+document.addEventListener('keyup', e => {
+  if ((e.key === 'ArrowLeft' && dir === -1) || (e.key === 'ArrowRight' && dir === 1)) dir = 0;
+});
+
+function hold(el, d) {
+  el.addEventListener('pointerdown', e => { e.preventDefault(); dir = d; });
+  ['pointerup','pointerleave','pointercancel'].forEach(ev => el.addEventListener(ev, () => { dir = 0; }));
+}
+hold(document.getElementById('bl'), -1);
+hold(document.getElementById('br'), 1);
+
+stage.addEventListener('pointerdown', e => {
+  if (!running) return;
+  const r = stage.getBoundingClientRect();
+  catX = Math.max(46, Math.min(W - 46, e.clientX - r.left));
+});
+stage.addEventListener('pointermove', e => {
+  if (!running || e.buttons === 0) return;
+  const r = stage.getBoundingClientRect();
+  catX = Math.max(46, Math.min(W - 46, e.clientX - r.left));
+});
+
+drawLife();
+</script>
+</body>
+</html>
