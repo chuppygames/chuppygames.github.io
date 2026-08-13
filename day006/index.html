@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ふうせん チキンレース｜Chuppy Games Day 006</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    font-family: "Hiragino Maru Gothic ProN", "Yu Gothic", system-ui, sans-serif;
+    min-height: 100vh;
+    display: flex; align-items: center; justify-content: center;
+    padding: 18px;
+    color: #5a3a34;
+    background: linear-gradient(175deg, #ffd9a0 0%, #ffb37a 34%, #ff8f7a 62%, #b97aa0 100%);
+    overflow: hidden; position: relative; user-select: none;
+  }
+  body::before {
+    content: ""; position: fixed; left: -10%; right: -10%; bottom: 0; height: 34%;
+    background: radial-gradient(ellipse at 50% 100%, rgba(255,214,150,.55) 0%, rgba(255,214,150,0) 70%);
+    pointer-events: none;
+  }
+
+  .app {
+    position: relative; z-index: 3;
+    width: 100%; max-width: 380px;
+    background: #fffaf2;
+    border-radius: 28px;
+    padding: 18px 16px 16px;
+    box-shadow: 0 18px 40px rgba(120,60,60,0.28);
+  }
+
+  h1 { font-size: 24px; text-align: center; letter-spacing: 2px; color: #d94f4f; }
+  .sub { text-align: center; font-size: 11px; color: #b09a92; margin: 3px 0 12px; }
+
+  .score {
+    display: flex; align-items: center; justify-content: space-between;
+    background: #fdf0e4; border-radius: 14px; padding: 8px 14px; margin-bottom: 10px;
+  }
+  .score .who { font-size: 12px; color: #8a7069; }
+  .score .dots { font-size: 15px; letter-spacing: 3px; color: #d94f4f; }
+  .score .mid { font-size: 11px; color: #b09a92; }
+
+  .stage {
+    position: relative; height: 296px; border-radius: 18px; overflow: hidden;
+    background: linear-gradient(180deg, #fff4e2 0%, #ffe6cc 62%, #ffd9b8 100%);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .lantern {
+    position: absolute; top: 0; width: 20px; height: 27px; border-radius: 50% 50% 46% 46%;
+    background: #e8705f; box-shadow: 0 0 14px rgba(255,150,90,.6);
+  }
+  .lantern::before {
+    content: ""; position: absolute; top: -14px; left: 50%; width: 1px; height: 14px;
+    background: rgba(120,70,60,.35);
+  }
+
+  #balloon { width: 150px; transition: transform .28s cubic-bezier(.3,1.5,.5,1); transform-origin: 50% 88%; }
+  #balloon.pumping { animation: pumpJiggle .3s ease-out; }
+  @keyframes pumpJiggle { 0%,100%{filter:none} 45%{filter:brightness(1.12)} }
+  #balloon.gone { visibility: hidden; }
+
+  .piece { position: absolute; pointer-events: none; }
+  @keyframes pieceFly {
+    0%   { transform: translate(0,0) rotate(0deg); opacity: 1; }
+    100% { transform: translate(var(--px), var(--py)) rotate(var(--pr)); opacity: 0; }
+  }
+
+  .count {
+    position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
+    font-size: 12px; color: #a8877d; background: rgba(255,255,255,.75);
+    padding: 5px 14px; border-radius: 999px;
+  }
+  .count b { font-size: 17px; color: #d94f4f; }
+
+  .msg {
+    min-height: 34px; text-align: center; font-size: 14px;
+    color: #6b4a44; line-height: 1.6; margin: 10px 0 8px;
+  }
+
+  /* ラウンドの結果を まん中に どんと出す */
+  #flash {
+    position: absolute; inset: 0; z-index: 18;
+    display: none; align-items: center; justify-content: center;
+    pointer-events: none;
+  }
+  #flash.show { display: flex; }
+  #flash div {
+    font-size: 40px; font-weight: bold; text-align: center; line-height: 1.25;
+    padding: 16px 30px; border-radius: 22px;
+    background: rgba(255,250,242,.94);
+    box-shadow: 0 8px 0 rgba(200,120,110,.35);
+    animation: flashPop .55s cubic-bezier(.2,1.7,.4,1);
+  }
+  @keyframes flashPop { 0%{transform:scale(.4) rotate(-8deg);opacity:0} 100%{transform:scale(1) rotate(-2deg);opacity:1} }
+  #flash.win div  { color: #2fa36b; }
+  #flash.lose div { color: #d94f4f; }
+
+  /* 3本勝負の けっか */
+  #result {
+    position: absolute; inset: 0; z-index: 22;
+    background: rgba(255,250,242,.96);
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 10px;
+    text-align: center; padding: 18px;
+  }
+  #result.off { display: none; }
+  #result .huge { font-size: 58px; font-weight: bold; line-height: 1.15; }
+  #result.win  .huge { color: #2fa36b; }
+  #result.lose .huge { color: #d94f4f; }
+  #result .sc { font-size: 15px; color: #8a7069; }
+  #result .cm { font-size: 13px; color: #b09a92; }
+  #result button {
+    margin-top: 6px; background: #d94f4f; color: #fff; border: none;
+    border-radius: 999px; box-shadow: 0 5px 0 #b03c3c;
+    cursor: pointer; font-family: inherit; font-weight: bold;
+    font-size: 18px; padding: 14px 40px 12px;
+  }
+  #result button:active { transform: translateY(5px); box-shadow: 0 0 0 #b03c3c; }
+
+  .pad { display: flex; gap: 9px; }
+  .pad button {
+    flex: 1; padding: 13px 0 11px; font-size: 15px; font-weight: bold;
+    border: none; border-radius: 16px; font-family: inherit; cursor: pointer;
+    background: #ffe3d2; color: #b8443f; box-shadow: 0 4px 0 #f0c2ae;
+  }
+  .pad button b { display: block; font-size: 23px; line-height: 1.25; }
+  .pad button i {
+    display: block; font-style: normal; font-size: 11px;
+    font-weight: normal; color: #c47a6a; min-height: 15px; margin-top: 1px;
+  }
+  .pad button:active:not(:disabled) { transform: translateY(4px); box-shadow: 0 0 0 #f0c2ae; }
+  .pad button:disabled { opacity: .4; cursor: default; }
+
+  .foot { display: flex; gap: 9px; align-items: center; margin-top: 10px; }
+  button.btn {
+    flex: 1; background: #d94f4f; color: #fff; border: none;
+    border-radius: 999px; box-shadow: 0 4px 0 #b03c3c;
+    cursor: pointer; font-family: inherit; font-weight: bold;
+    font-size: 16px; padding: 12px 0 10px;
+  }
+  button.btn:active { transform: translateY(4px); box-shadow: 0 0 0 #b03c3c; }
+  #mute {
+    width: 46px; height: 46px; border: none; border-radius: 14px;
+    background: #ffe3d2; color: #b8443f; font-size: 17px; cursor: pointer; font-family: inherit;
+  }
+
+  .legend { margin-top: 9px; font-size: 10.5px; color: #b09a92; text-align: center; line-height: 1.85; }
+
+  #fx { position: fixed; inset: 0; pointer-events: none; overflow: hidden; z-index: 90; }
+  .bit { position: absolute; bottom: -24px; animation: bitUp 1.5s cubic-bezier(.15,.6,.35,1) forwards; }
+  @keyframes bitUp {
+    0%   { transform: translate(0,0) rotate(0) scale(.6); opacity: 0; }
+    18%  { opacity: 1; }
+    100% { transform: translate(var(--tx), var(--ty)) rotate(var(--tr)) scale(1.1); opacity: 0; }
+  }
+  .drop { position: absolute; top: -50px; animation: dropDown linear forwards; }
+  @keyframes dropDown {
+    0%   { transform: translateY(0) rotate(0); opacity: 0; }
+    10%  { opacity: 1; }
+    100% { transform: translateY(112vh) rotate(440deg); opacity: .85; }
+  }
+  #glow { position: fixed; inset: 0; z-index: 93; pointer-events: none; opacity: 0;
+          background: radial-gradient(circle at 50% 45%, rgba(255,240,220,.95) 0%, rgba(255,190,140,.65) 38%, rgba(255,190,140,0) 74%); }
+  #glow.go { animation: glowOut .95s ease-out forwards; }
+  @keyframes glowOut { 0%{opacity:0} 22%{opacity:1} 100%{opacity:0} }
+  .sway { animation: swayA .45s ease-in-out 2; }
+  @keyframes swayA { 0%,100%{transform:rotate(0)} 25%{transform:rotate(-1.7deg)} 75%{transform:rotate(1.7deg)} }
+  #toast {
+    position: fixed; left: 50%; top: 14%; transform: translateX(-50%);
+    z-index: 94; display: none;
+    background: #fffaf2; color: #d94f4f; border-radius: 999px;
+    padding: 11px 26px; font-size: 18px; font-weight: bold;
+    box-shadow: 0 4px 0 #f0c2ae, 0 12px 24px rgba(120,60,60,.35);
+  }
+  #toast.show { display: block; animation: toastIn 1.4s ease-out forwards; }
+  @keyframes toastIn {
+    0%   { transform: translateX(-50%) scale(.4); opacity: 0; }
+    18%  { transform: translateX(-50%) scale(1.08); opacity: 1; }
+    30%,80% { transform: translateX(-50%) scale(1); opacity: 1; }
+    100% { transform: translateX(-50%) translateY(-26px) scale(.95); opacity: 0; }
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <h1>ふうせん チキンレース</h1>
+  <p class="sub">わったほうが まけ　さきに 2かい かったら しょうり</p>
+
+  <div class="score">
+    <div><div class="who">あなた</div><div class="dots" id="pDots">○○</div></div>
+    <div class="mid" id="roundLbl">1本目</div>
+    <div style="text-align:right"><div class="who">あいて</div><div class="dots" id="cDots">○○</div></div>
+  </div>
+
+  <div class="stage" id="stage">
+    <div class="count">ふくらんだ かず <b id="cnt">0</b></div>
+    <svg id="balloon" viewBox="0 0 120 160" xmlns="http://www.w3.org/2000/svg"></svg>
+
+    <div id="flash"><div></div></div>
+
+    <div id="result" class="off">
+      <div class="huge" id="rHuge">まけ…</div>
+      <div class="sc" id="rScore"></div>
+      <div class="cm" id="rCm"></div>
+      <button id="btn2">もう一度</button>
+    </div>
+  </div>
+
+  <div class="msg" id="msg">なんかい ふくらます?</div>
+
+  <div class="pad">
+    <button class="pump" data-n="1">ふくらます<b>1かい</b><i>のこり 2</i></button>
+    <button class="pump" data-n="2">ふくらます<b>2かい</b><i>&nbsp;</i></button>
+    <button class="pump" data-n="3">ふくらます<b>3かい</b><i>&nbsp;</i></button>
+  </div>
+
+  <div class="foot">
+    <button class="btn" id="btn">はじめる</button>
+    <button id="mute">🔊</button>
+  </div>
+
+  <p class="legend">
+    <b>「1かい」は 1ラウンドに 2かいまで</b>（あいても おなじ）<br>
+    にげてばかりだと つかいきって、おおきく ふくらます しかなくなるよ
+  </p>
+</div>
+
+<div id="fx"></div>
+<div id="glow"></div>
+<div id="toast"></div>
+
+<script>
+/* ===== おと ===== */
+const Snd = (function () {
+  let ctx = null, on = true, sfxOut = null, bgmOut = null, timer = null, step = 0;
+
+  function init() {
+    if (!ctx) {
+      ctx = new (window.AudioContext || window.webkitAudioContext)();
+      sfxOut = ctx.createGain(); sfxOut.gain.value = 1.0; sfxOut.connect(ctx.destination);
+      bgmOut = ctx.createGain(); bgmOut.gain.value = 0.34; bgmOut.connect(ctx.destination);
+    }
+    if (ctx.state === 'suspended') ctx.resume();
+  }
+  function tone(f, dur, type, vol, when, out) {
+    if (!ctx || !on) return;
+    const t = when || ctx.currentTime;
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.type = type || 'sine'; o.frequency.setValueAtTime(f, t);
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(vol, t + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g); g.connect(out || sfxOut); o.start(t); o.stop(t + dur + 0.02);
+  }
+  function noise(dur, vol) {
+    if (!ctx || !on) return;
+    const n = Math.floor(ctx.sampleRate * dur), b = ctx.createBuffer(1, n, ctx.sampleRate), d = b.getChannelData(0);
+    for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / n);
+    const s = ctx.createBufferSource(), g = ctx.createGain();
+    s.buffer = b; g.gain.setValueAtTime(vol, ctx.currentTime);
+    s.connect(g); g.connect(sfxOut); s.start();
+  }
+
+  /* ポップな チップチューン風 ループ（C - Am - F - G） */
+  const N = { C:261.6, D:293.7, E:329.6, F:349.2, G:392.0, A:440.0, B:493.9, C2:523.3, D2:587.3, E2:659.3 };
+  const BASS  = [130.8, 110.0, 174.6, 196.0];
+  /* 4小節 × 8ステップ。-1 は やすみ */
+  const MEL = [
+    N.C2, -1, N.G, N.C2,  N.E2, -1, N.C2, -1,
+    N.A,  -1, N.C2, N.A,  N.E,  -1, N.A,  -1,
+    N.F,  N.A, N.C2, N.A, N.F,  -1, N.C2, -1,
+    N.G,  N.B, N.D2, N.B, N.G,  N.D2, N.B, -1
+  ];
+
+  function startBgm() {
+    if (!ctx || timer) return;
+    step = 0;
+    timer = setInterval(() => {
+      if (!on || !ctx) return;
+      const t = ctx.currentTime;
+      const s = step % 32;
+      const bar = Math.floor(s / 8);
+      const root = BASS[bar];
+
+      /* はずむ ベース（8分うら も鳴らす） */
+      if (s % 8 === 0) tone(root, 0.24, 'square', 0.060, t, bgmOut);
+      if (s % 8 === 2) tone(root * 2, 0.14, 'square', 0.034, t, bgmOut);
+      if (s % 8 === 4) tone(root, 0.20, 'square', 0.050, t, bgmOut);
+      if (s % 8 === 6) tone(root * 1.5, 0.14, 'square', 0.034, t, bgmOut);
+
+      /* キック と ハイハット */
+      if (s % 4 === 0) tone(78, 0.09, 'triangle', 0.070, t, bgmOut);
+      if (s % 2 === 1) tone(7400, 0.022, 'square', 0.011, t, bgmOut);
+
+      /* メロディ */
+      const m = MEL[s];
+      if (m > 0) {
+        tone(m, 0.20, 'square', 0.036, t, bgmOut);
+        tone(m * 2, 0.11, 'square', 0.011, t, bgmOut);
+      }
+      step++;
+    }, 200);
+  }
+  function stopBgm() { if (timer) { clearInterval(timer); timer = null; } }
+
+  return {
+    init: init,
+    bgm: function () { init(); startBgm(); },
+    toggle: function () {
+      on = !on;
+      if (on) { init(); startBgm(); } else { stopBgm(); }
+      return on;
+    },
+    pump: function (c) { tone(200 + c * 26, 0.16, 'triangle', 0.09); },
+    pop: function () {
+      noise(0.32, 0.24);
+      if (!ctx) return;
+      const t = ctx.currentTime;
+      tone(880, 0.06, 'square', 0.13, t);
+      [300, 200, 140].forEach((f, i) => tone(f, 0.22, 'sawtooth', 0.07, t + 0.04 + i * 0.05));
+    },
+    win: function () { if (!ctx) return; const t = ctx.currentTime;
+      [523, 659, 784, 1046].forEach((f, i) => tone(f, 0.3, 'square', 0.07, t + i * 0.1)); },
+    lose: function () { if (!ctx) return; const t = ctx.currentTime;
+      [392, 330, 262].forEach((f, i) => tone(f, 0.35, 'triangle', 0.08, t + i * 0.13)); }
+  };
+})();
+
+/* ===== 演出 ===== */
+const fx = document.getElementById('fx'), glow = document.getElementById('glow');
+const toast = document.getElementById('toast'), app = document.querySelector('.app');
+function bits(n) {
+  const set = ['🎈','🎉','⭐️','✨'];
+  for (let i = 0; i < n; i++) {
+    const b = document.createElement('div'); b.className = 'bit';
+    b.textContent = set[Math.floor(Math.random() * set.length)];
+    const L = i % 2 === 0, d = L ? 1 : -1;
+    b.style.left = L ? '8%' : 'auto'; b.style.right = L ? 'auto' : '8%';
+    b.style.fontSize = (14 + Math.random() * 18) + 'px';
+    b.style.setProperty('--tx', (d * (70 + Math.random() * 240)) + 'px');
+    b.style.setProperty('--ty', (-(230 + Math.random() * 300)) + 'px');
+    b.style.setProperty('--tr', (Math.random() * 460 - 230) + 'deg');
+    b.style.animationDelay = (Math.random() * 0.28) + 's';
+    fx.appendChild(b); setTimeout(() => b.remove(), 2100);
+  }
+}
+function rain(n) {
+  const set = ['🎈','⭐️','✨'];
+  for (let i = 0; i < n; i++) {
+    const d = document.createElement('div'); d.className = 'drop';
+    d.textContent = set[Math.floor(Math.random() * set.length)];
+    d.style.left = (Math.random() * 100) + '%';
+    d.style.fontSize = (16 + Math.random() * 20) + 'px';
+    d.style.animationDelay = (Math.random() * 0.8) + 's';
+    d.style.animationDuration = (2.2 + Math.random() * 1.8) + 's';
+    fx.appendChild(d); setTimeout(() => d.remove(), 5000);
+  }
+}
+function sway(el) { el.classList.remove('sway'); void el.offsetWidth; el.classList.add('sway'); setTimeout(() => el.classList.remove('sway'), 1000); }
+function miniCelebrate(text) {
+  bits(20); rain(24); sway(app);
+  toast.textContent = text;
+  toast.classList.remove('show'); void toast.offsetWidth; toast.classList.add('show');
+  setTimeout(() => toast.classList.remove('show'), 1400);
+}
+function bigCelebrate(text) {
+  const flashOn = () => { glow.classList.remove('go'); void glow.offsetWidth; glow.classList.add('go'); };
+  flashOn();
+  bits(60); rain(120); sway(app);
+  setTimeout(() => { bits(45); flashOn(); sway(app); }, 520);
+  setTimeout(() => { bits(35); rain(60); }, 1060);
+  setTimeout(() => { bits(30); sway(app); }, 1600);
+  toast.textContent = text;
+  toast.classList.remove('show'); void toast.offsetWidth; toast.classList.add('show');
+  setTimeout(() => toast.classList.remove('show'), 1900);
+}
+
+/* ===== ふうせんの絵 ===== */
+function balloonSVG(count, limitHint) {
+  const tension = Math.min(1, count / 16);
+  let mouth;
+  if (tension < 0.35)      mouth = '<path d="M52 88 q8 7 16 0" stroke="#7a2f2f" stroke-width="3" fill="none" stroke-linecap="round"/>';
+  else if (tension < 0.7)  mouth = '<ellipse cx="60" cy="90" rx="7" ry="6" fill="#7a2f2f"/>';
+  else                     mouth = '<ellipse cx="60" cy="91" rx="11" ry="10" fill="#7a2f2f"/><ellipse cx="60" cy="94" rx="5" ry="4" fill="#e8705f"/>';
+  const brow = tension > 0.6
+    ? '<path d="M40 60 l14 5 M80 60 l-14 5" stroke="#7a2f2f" stroke-width="3" stroke-linecap="round"/>' : '';
+  const sweat = tension > 0.75
+    ? '<path d="M92 62 q4 8 0 11 q-5 -1 -4 -6 z" fill="#8fd0ee"/>' : '';
+  return ''
+  + '<ellipse cx="60" cy="66" rx="46" ry="52" fill="#e8705f"/>'
+  + '<ellipse cx="60" cy="66" rx="46" ry="52" fill="none" stroke="#c8503f" stroke-width="3"/>'
+  + '<path d="M54 116 l6 10 l6 -10 z" fill="#c8503f"/>'
+  + '<path d="M60 126 q8 12 -2 20 q-8 6 -2 14" stroke="#c8503f" stroke-width="2.6" fill="none" stroke-linecap="round"/>'
+  + '<ellipse cx="42" cy="42" rx="13" ry="17" fill="#fff" opacity=".38" transform="rotate(-20 42 42)"/>'
+  + '<circle cx="46" cy="72" r="4.6" fill="#7a2f2f"/><circle cx="74" cy="72" r="4.6" fill="#7a2f2f"/>'
+  + '<circle cx="47.4" cy="70.4" r="1.6" fill="#fff"/><circle cx="75.4" cy="70.4" r="1.6" fill="#fff"/>'
+  + '<circle cx="34" cy="84" r="6" fill="#ff9a8a" opacity=".8"/><circle cx="86" cy="84" r="6" fill="#ff9a8a" opacity=".8"/>'
+  + mouth + brow + sweat;
+}
+
+/* ===== ゲーム ===== */
+const LMIN = 11, LMAX = 20;
+const stage = document.getElementById('stage');
+const balloon = document.getElementById('balloon');
+const cntEl = document.getElementById('cnt');
+const msgEl = document.getElementById('msg');
+const btn = document.getElementById('btn');
+const pumps = [...document.querySelectorAll('.pump')];
+
+const ONE_MAX = 2;
+let limit = 0, count = 0, pWin = 0, cWin = 0, round = 1;
+let playing = false, busy = false, turn = 'you';
+let pOne = 0, cOne = 0;
+
+function draw() {
+  balloon.innerHTML = balloonSVG(count);
+  const s = 0.55 + Math.min(count, 21) * 0.043;
+  balloon.style.transform = 'scale(' + s.toFixed(3) + ')';
+  balloon.classList.remove('gone');
+  cntEl.textContent = count;
+}
+
+const flashEl  = document.getElementById('flash');
+const resultEl = document.getElementById('result');
+
+function showFlash(text, kind) {
+  flashEl.className = 'show ' + kind;
+  flashEl.firstElementChild.textContent = text;
+}
+function hideFlash() { flashEl.className = ''; }
+
+function showResult(win) {
+  resultEl.className = win ? 'win' : 'lose';
+  document.getElementById('rHuge').textContent  = win ? 'かち！' : 'まけ…';
+  document.getElementById('rScore').textContent = 'あなた ' + pWin + ' 　－　 あいて ' + cWin;
+  document.getElementById('rCm').textContent    = win
+    ? 'よく にげきったね'
+    : '「1かい」を つかう タイミングが カギ';
+  msgEl.textContent = win ? 'あなたの しょうり！' : 'つぎは かてる';
+  if (win) { bigCelebrate('しょうり！'); Snd.win(); }
+}
+
+function dots(w) { return '●'.repeat(w) + '○'.repeat(2 - w); }
+function updateScore() {
+  document.getElementById('pDots').textContent = dots(pWin);
+  document.getElementById('cDots').textContent = dots(cWin);
+  document.getElementById('roundLbl').textContent = round + '本目';
+}
+
+function setPumps(en) {
+  pumps.forEach(b => {
+    const n = +b.dataset.n;
+    b.disabled = !en || (n === 1 && pOne >= ONE_MAX);
+  });
+  pumps[0].querySelector('i').textContent = pOne >= ONE_MAX ? 'つかいきり' : 'のこり ' + (ONE_MAX - pOne);
+}
+
+function newRound() {
+  limit = LMIN + Math.floor(Math.random() * (LMAX - LMIN + 1));
+  count = 0; turn = 'you'; busy = false;
+  pOne = 0; cOne = 0;
+  draw(); updateScore();
+  msgEl.textContent = 'なんかい ふくらます?';
+  setPumps(true);
+}
+
+function burst(who) {
+  Snd.pop();
+  balloon.classList.add('gone');
+  const r = stage.getBoundingClientRect();
+  for (let i = 0; i < 18; i++) {
+    const p = document.createElement('div');
+    p.className = 'piece';
+    const sz = 8 + Math.random() * 16;
+    const ang = (i / 18) * Math.PI * 2 + Math.random() * 0.4;
+    p.style.cssText = 'left:' + (r.width / 2 - sz / 2) + 'px;top:' + (r.height / 2 - sz / 2) + 'px;'
+      + 'width:' + sz + 'px;height:' + sz * 0.7 + 'px;background:#e8705f;border-radius:60% 40% 50% 45%;'
+      + '--px:' + (Math.cos(ang) * (110 + Math.random() * 110)).toFixed(0) + 'px;'
+      + '--py:' + (Math.sin(ang) * (110 + Math.random() * 110)).toFixed(0) + 'px;'
+      + '--pr:' + (Math.random() * 700 - 350).toFixed(0) + 'deg;'
+      + 'animation:pieceFly .85s ease-out forwards';
+    stage.appendChild(p);
+    setTimeout(() => p.remove(), 900);
+  }
+  stage.style.animation = 'swayA .4s'; setTimeout(() => { stage.style.animation = ''; }, 420);
+
+  setTimeout(() => {
+    const youLost = (who === 'you');
+    if (youLost) { cWin++; msgEl.textContent = 'わってしまった…'; Snd.lose(); }
+    else         { pWin++; msgEl.textContent = 'あいてが わった！'; Snd.win(); }
+    updateScore();
+    showFlash(youLost ? 'わってしまった…' : 'あいてが わった！',
+              youLost ? 'lose' : 'win');
+
+    setTimeout(() => {
+      hideFlash();
+      if (pWin >= 2 || cWin >= 2) {
+        playing = false; setPumps(false);
+        showResult(pWin >= 2);
+      } else {
+        if (!youLost) miniCelebrate(round + '本目 とった！');
+        round++;
+        newRound();
+      }
+    }, 1450);
+  }, 420);
+}
+
+function doPump(times, who, done) {
+  busy = true; setPumps(false);
+  let i = 0;
+  (function step() {
+    if (count >= limit) return;
+    count++;
+    Snd.pump(count);
+    draw();
+    balloon.classList.remove('pumping'); void balloon.offsetWidth; balloon.classList.add('pumping');
+    if (count >= limit) { setTimeout(() => burst(who), 260); return; }
+    i++;
+    if (i < times) setTimeout(step, 420);
+    else setTimeout(() => { busy = false; done(); }, 380);
+  })();
+}
+
+/* あいての かんがえ */
+function cpuChoose() {
+  const allowed = [3, 2, 1].filter(n => !(n === 1 && cOne >= ONE_MAX));
+  const lo = Math.max(LMIN, count + 1);
+  const total = LMAX - lo + 1;
+  if (total <= 0) return allowed[allowed.length - 1];
+  const th = 0.34 + Math.random() * 0.22;
+  for (const n of allowed) {
+    const hit = Math.max(0, Math.min(LMAX, count + n) - lo + 1);
+    if (hit / total <= th) {
+      if (Math.random() < 0.12) return allowed[Math.floor(Math.random() * allowed.length)];
+      return n;
+    }
+  }
+  return allowed[allowed.length - 1];
+}
+
+function cpuTurn() {
+  msgEl.textContent = 'あいての ばん…';
+  setTimeout(() => {
+    const n = cpuChoose();
+    if (n === 1) cOne++;
+    msgEl.textContent = 'あいては ' + n + 'かい ふくらます'
+      + (cOne >= ONE_MAX && n === 1 ? '（あいての 1かいは つかいきり）' : '');
+    setTimeout(() => {
+      doPump(n, 'cpu', () => {
+        turn = 'you';
+        msgEl.textContent = 'なんかい ふくらます?';
+        setPumps(true);
+      });
+    }, 520);
+  }, 620);
+}
+
+pumps.forEach(b => b.addEventListener('click', () => {
+  if (!playing || busy || turn !== 'you') return;
+  Snd.init();
+  Snd.bgm();
+  const n = +b.dataset.n;
+  if (n === 1) pOne++;
+  msgEl.textContent = 'あなたは ' + n + 'かい ふくらます';
+  doPump(n, 'you', () => { turn = 'cpu'; cpuTurn(); });
+}));
+
+function startMatch() {
+  Snd.bgm();
+  pWin = 0; cWin = 0; round = 1; playing = true;
+  btn.style.display = 'none';
+  resultEl.className = 'off';
+  hideFlash();
+  newRound();
+}
+btn.addEventListener('click', startMatch);
+document.getElementById('btn2').addEventListener('click', startMatch);
+
+document.getElementById('mute').addEventListener('click', e => {
+  e.stopPropagation();
+  document.getElementById('mute').textContent = Snd.toggle() ? '🔊' : '🔇';
+});
+
+/* ちょうちん（まん中は「ふくらんだ かず」が出るので 左右のはしだけ） */
+[[4, 16], [13, 30], [80, 30], [89, 16]].forEach(([x, y]) => {
+  const l = document.createElement('div');
+  l.className = 'lantern';
+  l.style.left = x + '%';
+  l.style.top = y + 'px';
+  stage.appendChild(l);
+});
+
+draw(); updateScore(); setPumps(false);
+</script>
+</body>
+</html>
