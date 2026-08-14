@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ゆきだまボウリング｜Chuppy Games Day 007</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    font-family: "Hiragino Maru Gothic ProN", "Yu Gothic", system-ui, sans-serif;
+    min-height: 100vh;
+    display: flex; align-items: center; justify-content: center;
+    padding: 18px;
+    color: #3c4a5c;
+    background: #e6edf5;
+    overflow: hidden; position: relative; user-select: none;
+  }
+  body::before {
+    content: ""; position: fixed; inset: 0; pointer-events: none; z-index: -1;
+    background: linear-gradient(180deg, #eef4fa 0%, #dde7f2 55%, #ccd9e8 100%);
+  }
+  .flake { position: fixed; color: #fff; pointer-events: none; animation: fall linear infinite; opacity: .9; }
+  @keyframes fall {
+    0%   { transform: translateY(-8vh) translateX(0) rotate(0); }
+    100% { transform: translateY(108vh) translateX(30px) rotate(360deg); }
+  }
+
+  .app {
+    position: relative; z-index: 3;
+    width: 100%; max-width: 390px;
+    background: #fbfdff; border-radius: 26px;
+    padding: 16px 14px 14px;
+    box-shadow: 0 16px 36px rgba(90,110,140,0.26);
+  }
+
+  h1 { font-size: 24px; text-align: center; letter-spacing: 3px; }
+  .sub { text-align: center; font-size: 11px; color: #9aa8bb; margin: 3px 0 11px; }
+
+  .hud { display: flex; gap: 7px; align-items: center; margin-bottom: 9px; }
+  .hud div { flex: 1; text-align: center; background: #eef3f8; border-radius: 13px; padding: 6px 0 4px; }
+  .hud span { display: block; font-size: 10px; color: #9aa8bb; }
+  .hud b { font-size: 20px; font-variant-numeric: tabular-nums; }
+  .hud .rest b { color: #e05a5a; }
+  #mute {
+    width: 42px; height: 42px; border: none; border-radius: 13px;
+    background: #eef3f8; color: #e05a5a; font-size: 17px; cursor: pointer; font-family: inherit;
+  }
+
+  .stage {
+    position: relative; height: 360px; border-radius: 18px; overflow: hidden;
+    background: linear-gradient(180deg, #eaf1f9 0%, #f3f8fc 30%, #ffffff 100%);
+    touch-action: none; cursor: grab;
+  }
+  .stage.drag { cursor: grabbing; }
+  canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+
+  .pop { position: absolute; font-size: 20px; font-weight: bold; color: #e05a5a; pointer-events: none; }
+  .pop.go { animation: popUp .9s ease-out forwards; }
+  @keyframes popUp {
+    0%   { transform: translateY(0) scale(.6); opacity: 0; }
+    25%  { transform: translateY(-6px) scale(1.15); opacity: 1; }
+    100% { transform: translateY(-38px) scale(1); opacity: 0; }
+  }
+
+  .overlay {
+    position: absolute; inset: 0; z-index: 12;
+    background: rgba(251,253,255,0.95);
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 11px;
+    text-align: center; padding: 20px;
+  }
+  .overlay.off { display: none; }
+  .overlay .t { font-size: 22px; }
+  .overlay .d { font-size: 13px; color: #9aa8bb; line-height: 1.9; }
+  .overlay .big { font-size: 54px; font-weight: bold; color: #e05a5a; line-height: 1.1; }
+
+  button.btn {
+    background: #e05a5a; color: #fff; border: none;
+    border-radius: 999px; box-shadow: 0 5px 0 #b84545;
+    cursor: pointer; font-family: inherit; font-weight: bold;
+    font-size: 17px; padding: 13px 36px 11px;
+  }
+  button.btn:active { transform: translateY(5px); box-shadow: 0 0 0 #b84545; }
+
+  .legend { margin-top: 9px; font-size: 10.5px; color: #9aa8bb; text-align: center; line-height: 1.85; }
+
+  #fx { position: fixed; inset: 0; pointer-events: none; overflow: hidden; z-index: 90; }
+  .bit { position: absolute; bottom: -24px; animation: bitUp 1.5s cubic-bezier(.15,.6,.35,1) forwards; }
+  @keyframes bitUp {
+    0%   { transform: translate(0,0) rotate(0) scale(.6); opacity: 0; }
+    18%  { opacity: 1; }
+    100% { transform: translate(var(--tx), var(--ty)) rotate(var(--tr)) scale(1.1); opacity: 0; }
+  }
+  .drop { position: absolute; top: -50px; animation: dropDown linear forwards; }
+  @keyframes dropDown {
+    0%   { transform: translateY(0) rotate(0); opacity: 0; }
+    10%  { opacity: 1; }
+    100% { transform: translateY(112vh) rotate(400deg); opacity: .9; }
+  }
+  #glow { position: fixed; inset: 0; z-index: 93; pointer-events: none; opacity: 0;
+          background: radial-gradient(circle at 50% 45%, rgba(255,255,255,.98) 0%, rgba(220,235,250,.75) 38%, rgba(220,235,250,0) 74%); }
+  #glow.go { animation: glowOut .95s ease-out forwards; }
+  @keyframes glowOut { 0%{opacity:0} 22%{opacity:1} 100%{opacity:0} }
+  .sway { animation: swayA .45s ease-in-out 2; }
+  @keyframes swayA { 0%,100%{transform:rotate(0)} 25%{transform:rotate(-1.7deg)} 75%{transform:rotate(1.7deg)} }
+  #toast {
+    position: fixed; left: 50%; top: 13%; transform: translateX(-50%);
+    z-index: 94; display: none;
+    background: #fbfdff; color: #e05a5a; border-radius: 999px;
+    padding: 12px 28px; font-size: 19px; font-weight: bold;
+    box-shadow: 0 4px 0 #d4dfeb, 0 12px 24px rgba(90,110,140,.32);
+  }
+  #toast.show { display: block; animation: toastIn 1.5s ease-out forwards; }
+  @keyframes toastIn {
+    0%   { transform: translateX(-50%) scale(.4); opacity: 0; }
+    18%  { transform: translateX(-50%) scale(1.08); opacity: 1; }
+    30%,80% { transform: translateX(-50%) scale(1); opacity: 1; }
+    100% { transform: translateX(-50%) translateY(-26px) scale(.95); opacity: 0; }
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <h1>ゆきだまボウリング</h1>
+  <p class="sub">てまえに ひっぱって はなす　ゆきだるまを たおそう</p>
+
+  <div class="hud">
+    <div><span>たおした</span><b id="score">0</b><span style="display:inline">/ 10</span></div>
+    <div><span>のこって いる</span><b id="left">10</b></div>
+    <div class="rest"><span>ゆきだま</span><b id="rest">3</b></div>
+    <button id="mute">🔊</button>
+  </div>
+
+  <div class="stage" id="stage">
+    <canvas id="cv"></canvas>
+    <div id="pops"></div>
+
+    <div class="overlay" id="ov">
+      <div class="t" id="ovT">ゆきだまボウリング</div>
+      <div class="d" id="ovD">ゆきだまを <b>てまえに ひっぱって</b><br>ぱっと はなすと おくへ ころがるよ。<br>ゆきだまは 3こ。10たい たおせるかな?</div>
+      <button class="btn" id="btn">はじめる</button>
+    </div>
+  </div>
+
+  <p class="legend">
+    ながく ひっぱるほど はやく ころがる<br>
+    ななめに ひっぱると まがる。たおれた ゆきだるまが となりも まきこむよ
+  </p>
+</div>
+
+<div id="fx"></div>
+<div id="glow"></div>
+<div id="toast"></div>
+
+<script>
+/* ===== おと ===== */
+const Snd = (function () {
+  let ctx = null, on = true, sfxOut = null, bgmOut = null, timer = null, step = 0;
+  function init() {
+    if (!ctx) {
+      ctx = new (window.AudioContext || window.webkitAudioContext)();
+      sfxOut = ctx.createGain(); sfxOut.gain.value = 1; sfxOut.connect(ctx.destination);
+      bgmOut = ctx.createGain(); bgmOut.gain.value = 0.30; bgmOut.connect(ctx.destination);
+    }
+    if (ctx.state === 'suspended') ctx.resume();
+  }
+  function tone(f, dur, type, vol, when, out) {
+    if (!ctx || !on) return;
+    const t = when || ctx.currentTime;
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.type = type || 'sine'; o.frequency.setValueAtTime(f, t);
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(vol, t + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g); g.connect(out || sfxOut); o.start(t); o.stop(t + dur + 0.02);
+  }
+  function noise(dur, vol, sm) {
+    if (!ctx || !on) return;
+    const n = Math.floor(ctx.sampleRate * dur), b = ctx.createBuffer(1, n, ctx.sampleRate), d = b.getChannelData(0);
+    let prev = 0;
+    for (let i = 0; i < n; i++) {
+      const r = (Math.random() * 2 - 1) * (1 - i / n);
+      prev = sm ? prev * 0.72 + r * 0.28 : r;
+      d[i] = prev;
+    }
+    const s = ctx.createBufferSource(), g = ctx.createGain();
+    s.buffer = b; g.gain.setValueAtTime(vol, ctx.currentTime);
+    s.connect(g); g.connect(sfxOut); s.start();
+  }
+  const MEL = [523.3, 0, 659.3, 0, 587.3, 0, 493.9, 0, 440.0, 0, 523.3, 0, 392.0, 0, 0, 0];
+  const BASS = [130.8, 110.0, 87.3, 98.0];
+  function startBgm() {
+    if (!ctx || timer || !on) return;
+    step = 0;
+    timer = setInterval(() => {
+      if (!on || !ctx) return;
+      const t = ctx.currentTime, s = step % 16;
+      if (s % 4 === 0) tone(BASS[(s / 4) % 4], 0.9, 'sine', 0.075, t, bgmOut);
+      const m = MEL[s];
+      if (m) { tone(m, 0.7, 'sine', 0.045, t, bgmOut); tone(m * 2, 0.4, 'sine', 0.012, t, bgmOut); }
+      step++;
+    }, 340);
+  }
+  function stopBgm() { if (timer) { clearInterval(timer); timer = null; } }
+  return {
+    init: init, bgm: function () { init(); startBgm(); }, stop: stopBgm,
+    isOn: function () { return on; },
+    sleep: function () { stopBgm(); if (ctx && ctx.state === 'running') ctx.suspend(); },
+    wake: function () { if (ctx && on && ctx.state === 'suspended') ctx.resume(); },
+    toggle: function () {
+      on = !on;
+      if (on) { init(); if (ctx.state === 'suspended') ctx.resume(); if (bgmOut) bgmOut.gain.value = 0.30; startBgm(); }
+      else { stopBgm(); if (bgmOut) bgmOut.gain.value = 0; }
+      return on;
+    },
+    roll: function () { noise(0.5, 0.055, true); tone(150, 0.4, 'sine', 0.045); },
+    hit: function (p) { noise(0.16, 0.14 * p, true); tone(230 + Math.random() * 120, 0.13, 'triangle', 0.07 * p); },
+    strike: function () { if (!ctx) return; const t = ctx.currentTime;
+      noise(0.6, 0.18, true);
+      [523.3, 659.3, 784.0, 1046.5, 1318.5].forEach((f, i) => tone(f, 0.36, 'sine', 0.085, t + i * 0.1)); }
+  };
+})();
+
+/* ===== 演出 ===== */
+const fx = document.getElementById('fx'), glow = document.getElementById('glow');
+const toast = document.getElementById('toast'), app = document.querySelector('.app');
+function bits(n) {
+  const set = ['❄️', '⛄️', '✨', '🤍'];
+  for (let i = 0; i < n; i++) {
+    const b = document.createElement('div'); b.className = 'bit';
+    b.textContent = set[Math.floor(Math.random() * set.length)];
+    const L = i % 2 === 0, d = L ? 1 : -1;
+    b.style.left = L ? '8%' : 'auto'; b.style.right = L ? 'auto' : '8%';
+    b.style.fontSize = (14 + Math.random() * 18) + 'px';
+    b.style.setProperty('--tx', (d * (70 + Math.random() * 240)) + 'px');
+    b.style.setProperty('--ty', (-(230 + Math.random() * 300)) + 'px');
+    b.style.setProperty('--tr', (Math.random() * 440 - 220) + 'deg');
+    b.style.animationDelay = (Math.random() * 0.28) + 's';
+    fx.appendChild(b); setTimeout(() => b.remove(), 2100);
+  }
+}
+function snowRain(n) {
+  const set = ['❄️', '✨', '🤍'];
+  for (let i = 0; i < n; i++) {
+    const d = document.createElement('div'); d.className = 'drop';
+    d.textContent = set[Math.floor(Math.random() * set.length)];
+    d.style.left = (Math.random() * 100) + '%';
+    d.style.fontSize = (15 + Math.random() * 20) + 'px';
+    d.style.animationDelay = (Math.random() * 0.8) + 's';
+    d.style.animationDuration = (2.4 + Math.random() * 2.0) + 's';
+    fx.appendChild(d); setTimeout(() => d.remove(), 5400);
+  }
+}
+function sway(el) { el.classList.remove('sway'); void el.offsetWidth; el.classList.add('sway'); setTimeout(() => el.classList.remove('sway'), 1000); }
+function miniCelebrate(text) {
+  bits(24); snowRain(32); sway(app);
+  toast.textContent = text;
+  toast.classList.remove('show'); void toast.offsetWidth; toast.classList.add('show');
+  setTimeout(() => toast.classList.remove('show'), 1500);
+}
+function bigCelebrate(text) {
+  const g = () => { glow.classList.remove('go'); void glow.offsetWidth; glow.classList.add('go'); };
+  g(); bits(60); snowRain(115); sway(app); Snd.strike();
+  setTimeout(() => { bits(44); g(); sway(app); }, 520);
+  setTimeout(() => { bits(34); snowRain(58); }, 1060);
+  setTimeout(() => { bits(28); sway(app); }, 1600);
+  toast.textContent = text;
+  toast.classList.remove('show'); void toast.offsetWidth; toast.classList.add('show');
+  setTimeout(() => toast.classList.remove('show'), 2000);
+}
+
+/* ===== 世界の座標 =====
+   x: よこ  -1(ひだり) 〜 1(みぎ)
+   z: おくゆき 0(てまえ) 〜 1(おく)
+   画面には えんきんほう で うつす                       */
+const BALL_R = 0.075, PIN_R = 0.055;
+const FRICTION = 0.42, STOP_V = 0.10, REST = 0.95;
+const SHOTS = 3, PIN_N = 10;
+const DOWN_BALL = 0.10, DOWN_PIN = 0.08, DOWN_SPD = 0.14;
+/* ゆきだまは おもいので ほとんど はじかれず、ゆきだるまだけ よく とぶ */
+const BALL_W = 0.35, PIN_W = 0.70;
+
+const stage = document.getElementById('stage');
+const cv = document.getElementById('cv'), c = cv.getContext('2d');
+const pops = document.getElementById('pops');
+const ov = document.getElementById('ov'), btn = document.getElementById('btn');
+
+let W = 360, H = 360;
+let running = false, score = 0, shots = SHOTS;
+let pins = [], ball = null, aiming = false, aimS = null, aimE = null;
+let raf = null, last = 0, settleT = 0, hitThisShot = 0;
+
+function resize() {
+  const r = stage.getBoundingClientRect();
+  W = r.width; H = r.height;
+  cv.width = Math.round(W * 2); cv.height = Math.round(H * 2);
+  c.setTransform(2, 0, 0, 2, 0, 0);
+}
+
+/* えんきんほう */
+const NEAR_Y = 0.93, FAR_Y = 0.26, HALF_NEAR = 0.46, HALF_FAR = 0.145;
+function proj(x, z) {
+  const t = Math.max(0, Math.min(1.15, z));
+  const half = (HALF_NEAR + (HALF_FAR - HALF_NEAR) * t) * W;
+  return {
+    sx: W / 2 + x * half,
+    sy: (NEAR_Y + (FAR_Y - NEAR_Y) * t) * H,
+    k: 1 - 0.63 * t
+  };
+}
+
+function buildPins() {
+  pins = [];
+  /* ボウリングの三角ならび 1-2-3-4 */
+  /* となりどうしの あいだを あける（ちょっけい0.11 に対して 0.17 はなす）*/
+  const rows = [
+    [0.660, [0]],
+    [0.807, [-0.085, 0.085]],
+    [0.954, [-0.170, 0, 0.170]],
+    [1.101, [-0.255, -0.085, 0.085, 0.255]]
+  ];
+  rows.forEach(([z, xs]) => xs.forEach(x => {
+    pins.push({ x: x, z: z, vx: 0, vz: 0, down: false, gone: false, tilt: 0, vt: 0, fade: 1 });
+  }));
+}
+
+function drawSnowman(p0) {
+  const p = proj(p0.x, p0.z);
+  const s = p.k * W * 0.115;
+  const down = p0.down;
+  const fade = down ? Math.max(0, p0.fade) : 1;
+
+  c.save();
+  c.translate(p.sx, p.sy);
+  c.globalAlpha = down ? 0.28 + fade * 0.62 : 1;
+
+  /* かげ */
+  c.beginPath(); c.ellipse(0, s * 0.12, s * 0.62, s * 0.18, 0, 0, Math.PI * 2);
+  c.fillStyle = 'rgba(150,175,200,.28)'; c.fill();
+
+  if (down) {
+    /* 倒れた ゆきだるま:よこ向き + 灰色 + くずれる */
+    c.rotate(p0.tilt);
+    const body = '#cfdcea', line = '#a9bccf';
+    const spread = (1 - fade) * s * 0.5;
+    c.beginPath(); c.arc(-spread * 0.6, -s * 0.30, s * 0.46, 0, Math.PI * 2);
+    c.fillStyle = body; c.fill();
+    c.lineWidth = Math.max(1.2, s * 0.05); c.strokeStyle = line; c.stroke();
+    c.beginPath(); c.arc(s * 0.86 + spread, -s * 0.34, s * 0.30, 0, Math.PI * 2);
+    c.fillStyle = body; c.fill(); c.stroke();
+    c.fillStyle = '#c98f8f';
+    c.fillRect(s * 0.34, -s * 0.56, s * 0.15, s * 0.44);
+    c.restore();
+    return;
+  }
+
+  /* 立っている ゆきだるま */
+  c.beginPath(); c.arc(0, -s * 0.34, s * 0.46, 0, Math.PI * 2);
+  c.fillStyle = '#fff'; c.fill(); c.lineWidth = Math.max(1.4, s * 0.06); c.strokeStyle = '#8fa8c2'; c.stroke();
+  c.beginPath(); c.arc(0, -s * 1.02, s * 0.32, 0, Math.PI * 2);
+  c.fillStyle = '#fff'; c.fill(); c.stroke();
+  c.fillStyle = '#e05a5a';
+  c.fillRect(-s * 0.34, -s * 0.78, s * 0.68, s * 0.15);
+  c.fillRect(s * 0.12, -s * 0.72, s * 0.14, s * 0.36);
+  if (s > 11) {
+    c.fillStyle = '#3c4a5c';
+    c.beginPath(); c.arc(-s * 0.12, -s * 1.08, s * 0.06, 0, Math.PI * 2); c.fill();
+    c.beginPath(); c.arc(s * 0.12, -s * 1.08, s * 0.06, 0, Math.PI * 2); c.fill();
+    c.fillStyle = '#e88a3c';
+    c.beginPath(); c.moveTo(0, -s * 1.0); c.lineTo(s * 0.28, -s * 0.95); c.lineTo(0, -s * 0.9); c.closePath(); c.fill();
+  }
+  c.restore();
+}
+
+function draw() {
+  c.clearRect(0, 0, W, H);
+
+  /* そら と とおくの 山 */
+  const hz = FAR_Y * H - 22;
+  c.fillStyle = '#eaf1f9'; c.fillRect(0, 0, W, hz);
+  c.fillStyle = '#dce6f1';
+  c.beginPath(); c.moveTo(0, hz);
+  c.lineTo(W * 0.22, hz - 30); c.lineTo(W * 0.42, hz);
+  c.lineTo(W * 0.62, hz - 40); c.lineTo(W * 0.82, hz);
+  c.lineTo(W, hz - 18); c.lineTo(W, hz); c.closePath(); c.fill();
+
+  /* レーン */
+  const nL = proj(-1, 0), nR = proj(1, 0), fL = proj(-1, 1.12), fR = proj(1, 1.12);
+  c.beginPath();
+  c.moveTo(nL.sx, nL.sy); c.lineTo(nR.sx, nR.sy);
+  c.lineTo(fR.sx, fR.sy); c.lineTo(fL.sx, fL.sy); c.closePath();
+  c.fillStyle = '#ffffff'; c.fill();
+  c.lineWidth = 3; c.strokeStyle = '#dbe6f2'; c.stroke();
+
+  /* おくゆきの めやす線 */
+  c.strokeStyle = 'rgba(200,216,232,.75)'; c.lineWidth = 1.5;
+  [0.25, 0.5, 0.75].forEach(z => {
+    const a = proj(-1, z), b = proj(1, z);
+    c.beginPath(); c.moveTo(a.sx, a.sy); c.lineTo(b.sx, b.sy); c.stroke();
+  });
+
+  /* おくから てまえへ 描く */
+  const order = pins.filter(p => !p.gone).slice().sort((a, b) => b.z - a.z);
+  order.forEach(p => drawSnowman(p));
+
+  /* ゆきだま */
+  if (ball) {
+    const p = proj(ball.x, ball.z), r = p.k * W * BALL_R;
+    c.beginPath(); c.ellipse(p.sx, p.sy + r * 0.2, r * 0.9, r * 0.3, 0, 0, Math.PI * 2);
+    c.fillStyle = 'rgba(150,175,200,.3)'; c.fill();
+    c.beginPath(); c.arc(p.sx, p.sy - r * 0.5, r, 0, Math.PI * 2);
+    c.fillStyle = '#fff'; c.fill();
+    c.lineWidth = Math.max(1.4, r * 0.14); c.strokeStyle = '#b9cadd'; c.stroke();
+    c.beginPath(); c.arc(p.sx - r * 0.3, p.sy - r * 0.8, r * 0.3, 0, Math.PI * 2);
+    c.fillStyle = 'rgba(226,238,250,.9)'; c.fill();
+  }
+
+  /* ねらい */
+  if (aiming && aimS && aimE) {
+    const v = launchV();
+    const st = proj(0, 0.02);
+    c.fillStyle = 'rgba(224,90,90,.55)';
+    let x = 0, z = 0.02, vx = v.vx, vz = v.vz;
+    for (let i = 0; i < 40; i++) {
+      const dt = 0.03;
+      vx *= (1 - FRICTION * dt); vz *= (1 - FRICTION * dt);
+      x += vx * dt; z += vz * dt;
+      if (z > 1.1 || Math.abs(x) > 1) break;
+      if (i % 2 === 0) { const p = proj(x, z); c.beginPath(); c.arc(p.sx, p.sy - 4, Math.max(1.6, p.k * 3.4), 0, Math.PI * 2); c.fill(); }
+    }
+    /* ひっぱりの ゴム */
+    c.strokeStyle = '#e05a5a'; c.lineWidth = 3; c.lineCap = 'round';
+    c.beginPath(); c.moveTo(st.sx, st.sy - 14); c.lineTo(aimE.x, aimE.y); c.stroke();
+  }
+}
+
+function launchV() {
+  const dx = aimS.x - aimE.x, dy = aimS.y - aimE.y;   /* てまえに ひっぱる = dy が マイナス */
+  const pull = Math.min(150, Math.hypot(dx, dy));
+  const power = 0.55 + (pull / 150) * 1.55;            /* 0.55 〜 2.10 */
+  const dir = -dx / 150 * 0.75;                        /* よこの ずれ */
+  return { vx: dir * power, vz: power };
+}
+
+function updateLeft() {
+  document.getElementById('left').textContent = pins.filter(p => !p.down).length;
+}
+
+function addPop(x, z, txt) {
+  const p = proj(x, z);
+  const d = document.createElement('div');
+  d.className = 'pop'; d.textContent = txt;
+  d.style.left = (p.sx - 18) + 'px'; d.style.top = (p.sy - 40) + 'px';
+  pops.appendChild(d); void d.offsetWidth; d.classList.add('go');
+  setTimeout(() => d.remove(), 950);
+}
+
+function collide(a, ar, b, br, aw, bw) {
+  const dx = b.x - a.x, dz = b.z - a.z;
+  const d = Math.hypot(dx, dz), min = ar + br;
+  if (d === 0 || d >= min) return 0;
+  const nx = dx / d, nz = dz / d;
+  const rvx = b.vx - a.vx, rvz = b.vz - a.vz;
+  const sep = rvx * nx + rvz * nz;
+  /* 近づいて いない ときは 力を あたえない（かさなりを ほどくだけ） */
+  const imp = sep < 0 ? -sep * REST : 0;
+  if (imp > 0) {
+    a.vx -= nx * imp * (aw === undefined ? 0.5 : aw);
+    a.vz -= nz * imp * (aw === undefined ? 0.5 : aw);
+    b.vx += nx * imp * (bw === undefined ? 0.5 : bw);
+    b.vz += nz * imp * (bw === undefined ? 0.5 : bw);
+  }
+  const push = (min - d) / 2;
+  a.x -= nx * push; a.z -= nz * push;
+  b.x += nx * push; b.z += nz * push;
+  return imp;
+}
+
+function step(t) {
+  if (!running) return;
+  const dt = Math.min(0.032, (t - last) / 1000); last = t;
+  const bodies = ball ? [ball].concat(pins.filter(p => !p.gone)) : pins.filter(p => !p.gone);
+
+  bodies.forEach(o => {
+    o.vx *= (1 - FRICTION * dt); o.vz *= (1 - FRICTION * dt);
+    o.x += o.vx * dt; o.z += o.vz * dt;
+    if (o.down) {
+      /* よこ向きに たおれきる */
+      const target = o.vt > 0 ? 1.5 : -1.5;
+      o.tilt += (target - o.tilt) * Math.min(1, dt * 7);
+      o.fade -= dt / 1.1;
+      if (o.fade <= 0) o.gone = true;
+    }
+  });
+
+  /* ゆきだま と ゆきだるま */
+  if (ball) {
+    pins.forEach(p => {
+      if (p.gone) return;
+      const imp = collide(ball, BALL_R, p, PIN_R, BALL_W, PIN_W);
+      if (imp > DOWN_BALL && !p.down) {
+        p.down = true; p.vt = (Math.random() * 2 - 1) * 7;
+        score++; hitThisShot++;
+        document.getElementById('score').textContent = score;
+        updateLeft();
+        addPop(p.x, p.z, '+1');
+        Snd.hit(Math.min(1, imp));
+      }
+    });
+  }
+  /* ゆきだるま どうし（まきこみ） */
+  for (let i = 0; i < pins.length; i++) {
+    for (let j = i + 1; j < pins.length; j++) {
+      const a = pins[i], b = pins[j];
+      if (a.gone || b.gone) continue;
+      const imp = collide(a, PIN_R, b, PIN_R);
+      if (imp > DOWN_PIN) {
+        [a, b].forEach(p => {
+          if (!p.down && Math.hypot(p.vx, p.vz) > DOWN_SPD) {
+            p.down = true; p.vt = (Math.random() * 2 - 1) * 7;
+            score++; hitThisShot++;
+            document.getElementById('score').textContent = score;
+            updateLeft();
+            addPop(p.x, p.z, '+1');
+            Snd.hit(0.7);
+          }
+        });
+      }
+    }
+  }
+
+  pins.forEach(p => { if (!p.gone && (Math.abs(p.x) > 1.35 || p.z > 1.4 || p.z < -0.2)) p.gone = true; });
+
+  if (ball) {
+    if (Math.abs(ball.x) > 1.15 || ball.z > 1.35) { ball = null; settleT = 0.9; }
+    else if (Math.hypot(ball.vx, ball.vz) < STOP_V) { ball = null; settleT = 0.9; }
+  }
+
+  if (!ball && settleT > 0) { settleT -= dt; if (settleT <= 0) endShot(); }
+
+  draw();
+  raf = requestAnimationFrame(step);
+}
+
+function endShot() {
+  const n = hitThisShot; hitThisShot = 0;
+  if (score >= PIN_N) { finish(true); return; }
+  if (n >= 5) miniCelebrate(n + 'たい たおした！');
+  if (shots <= 0) { finish(false); return; }
+}
+
+function finish(strike) {
+  running = false; cancelAnimationFrame(raf); Snd.stop();
+  setTimeout(() => {
+    document.getElementById('ovT').textContent = strike ? 'ストライク！' : 'おしまい';
+    document.getElementById('ovD').innerHTML =
+      '<div class="big">' + score + 'たい</div>' +
+      (strike ? 'ぜんぶ たおせた！' :
+       score >= 8 ? 'あと ちょっとだった…' :
+       score >= 5 ? 'なかなか いい たまだった' : 'もういちど ねらってみる?');
+    btn.textContent = 'もう一度';
+    ov.classList.remove('off');
+    if (strike) bigCelebrate('ストライク！');
+  }, 700);
+}
+
+function shoot() {
+  const v = launchV();
+  ball = { x: 0, z: 0.02, vx: v.vx, vz: v.vz };
+  shots--; hitThisShot = 0;
+  document.getElementById('rest').textContent = shots;
+  Snd.roll();
+}
+
+stage.addEventListener('pointerdown', e => {
+  if (!running || ball) return;
+  const r = stage.getBoundingClientRect();
+  aiming = true; stage.classList.add('drag');
+  aimS = { x: e.clientX - r.left, y: e.clientY - r.top };
+  aimE = { x: aimS.x, y: aimS.y };
+});
+stage.addEventListener('pointermove', e => {
+  if (!aiming) return;
+  const r = stage.getBoundingClientRect();
+  aimE = { x: e.clientX - r.left, y: e.clientY - r.top };
+  draw();
+});
+function release() {
+  if (!aiming) return;
+  aiming = false; stage.classList.remove('drag');
+  const d = Math.hypot(aimS.x - aimE.x, aimS.y - aimE.y);
+  if (d > 14 && shots > 0) shoot();
+  aimS = aimE = null;
+}
+stage.addEventListener('pointerup', release);
+stage.addEventListener('pointercancel', release);
+stage.addEventListener('pointerleave', release);
+
+function start() {
+  resize(); Snd.bgm();
+  score = 0; shots = SHOTS; ball = null; settleT = 0; hitThisShot = 0;
+  document.getElementById('score').textContent = 0;
+  document.getElementById('rest').textContent = shots;
+  buildPins();
+  updateLeft();
+  ov.classList.add('off');
+  running = true; last = performance.now();
+  raf = requestAnimationFrame(step);
+}
+
+btn.addEventListener('click', e => { e.stopPropagation(); start(); });
+document.getElementById('mute').addEventListener('click', e => {
+  e.stopPropagation();
+  document.getElementById('mute').textContent = Snd.toggle() ? '🔊' : '🔇';
+});
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) Snd.sleep();
+  else if (running && Snd.isOn()) { Snd.wake(); Snd.bgm(); }
+});
+window.addEventListener('pagehide', () => Snd.sleep());
+window.addEventListener('blur', () => Snd.sleep());
+window.addEventListener('resize', () => { resize(); draw(); });
+
+for (let i = 0; i < 22; i++) {
+  const f = document.createElement('div');
+  f.className = 'flake';
+  f.textContent = Math.random() < 0.5 ? '❄' : '·';
+  f.style.left = (Math.random() * 100) + '%';
+  f.style.fontSize = (7 + Math.random() * 12) + 'px';
+  f.style.animationDuration = (9 + Math.random() * 11) + 's';
+  f.style.animationDelay = (-Math.random() * 16) + 's';
+  document.body.appendChild(f);
+}
+
+resize(); buildPins(); draw();
+</script>
+</body>
+</html>

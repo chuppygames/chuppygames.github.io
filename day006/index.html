@@ -276,7 +276,7 @@ const Snd = (function () {
   ];
 
   function startBgm() {
-    if (!ctx || timer) return;
+    if (!ctx || timer || !on) return;
     step = 0;
     timer = setInterval(() => {
       if (!on || !ctx) return;
@@ -309,9 +309,22 @@ const Snd = (function () {
   return {
     init: init,
     bgm: function () { init(); startBgm(); },
+    stop: stopBgm,
+    isOn: function () { return on; },
+    /* 画面を離れたら 完全に止める */
+    sleep: function () {
+      stopBgm();
+      if (ctx && ctx.state === 'running') ctx.suspend();
+    },
+    wake: function () {
+      if (!ctx || !on) return;
+      if (ctx.state === 'suspended') ctx.resume();
+    },
     toggle: function () {
       on = !on;
-      if (on) { init(); startBgm(); } else { stopBgm(); }
+      if (on) { init(); if (ctx.state === 'suspended') ctx.resume(); startBgm(); }
+      else { stopBgm(); if (bgmOut) bgmOut.gain.value = 0; }
+      if (on && bgmOut) bgmOut.gain.value = 0.34;
       return on;
     },
     pump: function (c) { tone(200 + c * 26, 0.16, 'triangle', 0.09); },
@@ -441,6 +454,8 @@ function showResult(win) {
     : '「1かい」を つかう タイミングが カギ';
   msgEl.textContent = win ? 'あなたの しょうり！' : 'つぎは かてる';
   if (win) { bigCelebrate('しょうり！'); Snd.win(); }
+  /* しょうぶが ついたら BGMは とめる */
+  setTimeout(() => Snd.stop(), win ? 2200 : 700);
 }
 
 function dots(w) { return '●'.repeat(w) + '○'.repeat(2 - w); }
@@ -584,6 +599,15 @@ document.getElementById('mute').addEventListener('click', e => {
   e.stopPropagation();
   document.getElementById('mute').textContent = Snd.toggle() ? '🔊' : '🔇';
 });
+
+/* タブを かくしたり アプリを きりかえたら 音を とめる */
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) Snd.sleep();
+  else if (playing && Snd.isOn()) { Snd.wake(); Snd.bgm(); }
+});
+window.addEventListener('pagehide', () => Snd.sleep());
+window.addEventListener('blur', () => Snd.sleep());
+window.addEventListener('focus', () => { if (playing && Snd.isOn()) { Snd.wake(); Snd.bgm(); } });
 
 /* ちょうちん（まん中は「ふくらんだ かず」が出るので 左右のはしだけ） */
 [[4, 16], [13, 30], [80, 30], [89, 16]].forEach(([x, y]) => {
