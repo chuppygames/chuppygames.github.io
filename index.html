@@ -4,174 +4,278 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Chuppy Games｜毎日ひとつ、AIで小さなゲームを作る</title>
-<meta name="description" content="毎日ひとつ、AIで小さなゲームを作っています。ブラウザですぐ遊べます。">
+<meta name="description" content="毎日ひとつ、AIで小さなゲームを作っています。1本ごとにその日わかったことを添えた、遊べる学習ノートです。ブラウザですぐ遊べます。">
 <style>
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body {
-    font-family: "Hiragino Sans", "Yu Gothic", system-ui, sans-serif;
-    min-height: 100vh;
-    background: linear-gradient(150deg, #ffe9a8 0%, #ffd0dc 45%, #bfe6ff 100%);
-    background-attachment: fixed;
-    color: #3d3652;
-    padding: 40px 20px 60px;
+  :root{
+    --bg:#0d0524;
+    --pink:#ff5f9e;
+    --violet:#a14bff;
+    --cyan:#4fe6ff;
+    --sun1:#ffd36e;
+    --text:#efe6ff;
+    --dim:#a495c9;
+    --sans:"Hiragino Sans","Hiragino Kaku Gothic ProN","Yu Gothic",system-ui,sans-serif;
+    --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
   }
-  .wrap { max-width: 620px; margin: 0 auto; }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    position:relative;
+    background:var(--bg); color:var(--text); font-family:var(--sans);
+    line-height:1.8; min-height:100vh; overflow-x:hidden; -webkit-font-smoothing:antialiased;
+  }
+  /* ---- 空・太陽・地平線 ---- */
+  .bgtop{
+    position:absolute; left:0; right:0; top:0; height:660px; z-index:0;
+    overflow:hidden; pointer-events:none;
+    mask-image:linear-gradient(180deg,#000 62%,transparent 98%);
+    -webkit-mask-image:linear-gradient(180deg,#000 62%,transparent 98%);
+  }
+  .sky{
+    position:absolute; inset:0;
+    background:linear-gradient(180deg,#0d0524 0%,#2b0f4d 46%,#6c1c70 76%,#c4406a 100%);
+    opacity:.9;
+  }
+  .sun{
+    position:absolute; left:50%; top:70px; transform:translateX(-50%);
+    width:min(300px,68vw); aspect-ratio:1; border-radius:50%;
+    background:linear-gradient(180deg,var(--sun1) 0%,#ff9a5c 45%,var(--pink) 100%);
+    -webkit-mask-image:repeating-linear-gradient(180deg,#000 0 82%,transparent 82% 84%,#000 84% 88%,transparent 88% 91%,#000 91% 94%,transparent 94% 97%);
+    mask-image:repeating-linear-gradient(180deg,#000 0 82%,transparent 82% 84%,#000 84% 88%,transparent 88% 91%,#000 91% 94%,transparent 94% 97%);
+    filter:blur(.3px); opacity:.42;
+  }
+  .floor{
+    position:fixed; left:0; right:0; bottom:0; height:34vh; z-index:0; pointer-events:none;
+    opacity:.55; overflow:hidden;
+  }
+  .floor::before{
+    content:""; position:absolute; inset:-50% -50% 0;
+    background-image:
+      repeating-linear-gradient(90deg,rgba(79,230,255,.30) 0 1px,transparent 1px 42px),
+      repeating-linear-gradient(0deg,rgba(79,230,255,.30) 0 1px,transparent 1px 42px);
+    transform:perspective(180px) rotateX(66deg);
+    transform-origin:50% 0;
+    mask-image:linear-gradient(180deg,transparent,#000 40%);
+    -webkit-mask-image:linear-gradient(180deg,transparent,#000 40%);
+  }
+  .wrap{position:relative; z-index:2; max-width:760px; margin:0 auto; padding:0 20px 90px}
 
-  header { text-align: center; margin-bottom: 32px; }
-  h1 { font-size: 34px; color: #ff7aa8; letter-spacing: 1px; margin-bottom: 4px; }
-  .romaji { font-size: 11px; letter-spacing: 3px; opacity: 0.4; margin-bottom: 14px; }
-  .tag { font-size: 16px; line-height: 1.9; }
-  .tag b { color: #ff7aa8; }
-  .en { font-size: 11px; opacity: 0.45; margin-top: 8px; letter-spacing: 0.5px; }
+  /* ---- ヘッダー ---- */
+  header{padding:64px 0 0; text-align:center}
+  .tag{
+    display:inline-block; font-family:var(--mono); font-size:10px; letter-spacing:.32em;
+    color:var(--cyan); border:1px solid rgba(79,230,255,.4); border-radius:999px;
+    padding:5px 15px; background:rgba(13,5,36,.4); margin-bottom:20px;
+  }
+  h1{
+    font-size:29px; font-weight:800; line-height:1.55; letter-spacing:.03em;
+    background:linear-gradient(180deg,#ffffff 30%,#ffd9ec 55%,var(--pink) 100%);
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+    filter:drop-shadow(0 3px 14px rgba(255,95,158,.55));
+  }
+  h1 em{
+    font-style:normal;
+    background:linear-gradient(180deg,#ffffff 25%,#cdf3ff 50%,var(--cyan) 100%);
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+  }
+  .lede{font-size:13px; color:#d9cdf3; line-height:2.05; margin-top:18px; text-shadow:0 1px 12px rgba(13,5,36,.9)}
+  .stats{
+    display:grid; grid-template-columns:repeat(3,1fr); gap:10px;
+    max-width:440px; margin:30px auto 0;
+  }
+  .stats span{
+    display:block; padding:14px 6px 13px; text-align:center; border-radius:15px;
+    background:rgba(13,5,36,.46); border:1px solid rgba(255,255,255,.24);
+    backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px);
+    box-shadow:0 8px 26px rgba(8,2,24,.4), inset 0 1px 0 rgba(255,255,255,.16);
+  }
+  .stats i{
+    display:block; font-style:normal; font-family:var(--mono);
+    font-size:9px; letter-spacing:.3em; color:#cdbcf2; opacity:.85; margin-bottom:6px;
+  }
+  .stats b{
+    display:block; font-family:var(--mono); font-weight:700; font-size:38px;
+    line-height:1.05; letter-spacing:.02em; color:#fff;
+    text-shadow:0 0 20px rgba(79,230,255,.8), 0 0 44px rgba(79,230,255,.45);
+  }
+  .stats b u{text-decoration:none; font-size:15px; margin-left:2px; opacity:.85}
+  .stats .pk b{text-shadow:0 0 20px rgba(255,95,158,.85), 0 0 44px rgba(255,95,158,.5)}
+  .stats .dy b{
+    font-size:22px; padding:9px 0 7px; letter-spacing:.1em; color:#ffe6ae;
+    text-shadow:0 0 20px rgba(255,211,110,.9), 0 0 44px rgba(255,211,110,.5);
+    animation:beat 2.6s ease-in-out infinite;
+  }
+  @keyframes beat{0%,100%{opacity:1}50%{opacity:.74}}
 
-  .counter {
-    display: inline-block;
-    margin-top: 18px;
-    background: #fffdf8;
-    border: 1px solid rgba(255,255,255,0.9);
-    border-radius: 999px;
-    padding: 8px 24px;
-    font-size: 13px;
-    box-shadow: 0 8px 20px rgba(150,110,140,0.15);
+  /* ---- 一覧 ---- */
+  .label{
+    display:flex; align-items:center; gap:14px; margin:52px 0 18px;
+    font-family:var(--mono); font-size:10px; letter-spacing:.3em; color:var(--cyan);
   }
-  .counter b { color: #ff7aa8; font-size: 17px; }
+  .label i{flex:1; height:1px; background:linear-gradient(90deg,rgba(79,230,255,.55),transparent); font-style:normal}
 
-  .grid { display: grid; gap: 14px; }
-  a.card {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    background: #fffdf8;
-    border: 1px solid rgba(255,255,255,0.9);
-    border-radius: 18px;
-    padding: 16px 18px;
-    text-decoration: none;
-    color: inherit;
-    box-shadow: 0 10px 24px rgba(150,110,140,0.16);
-    transition: transform 0.15s, box-shadow 0.15s;
-  }
-  a.card:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 16px 32px rgba(150,110,140,0.26);
-  }
-  .icon {
-    font-size: 34px;
-    width: 58px; height: 58px;
-    display: flex; align-items: center; justify-content: center;
-    background: #fff5e6;
-    border-radius: 14px;
-    flex-shrink: 0;
-  }
-  .meta { flex: 1; min-width: 0; }
-  .day { font-size: 11px; letter-spacing: 1.5px; color: #ff7aa8; font-weight: bold; }
-  .title { font-size: 18px; font-weight: bold; margin: 2px 0 4px; }
-  .learn { font-size: 12px; opacity: 0.6; line-height: 1.6; }
-  .learn span { color: #f0a516; font-weight: bold; }
-  .go { font-size: 20px; opacity: 0.3; flex-shrink: 0; }
+  .grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(158px,1fr)); gap:15px}
 
-  footer { text-align: center; margin-top: 36px; font-size: 12px; opacity: 0.6; line-height: 2; }
-  footer a { color: #ff7aa8; }
+  a.card{
+    position:relative; display:block; text-decoration:none; color:inherit; overflow:hidden;
+    border-radius:18px; background:rgba(255,255,255,.075);
+    border:1px solid rgba(255,255,255,.18);
+    backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
+    box-shadow:0 8px 30px rgba(8,2,24,.45);
+    transition:transform .3s cubic-bezier(.2,.8,.3,1), box-shadow .3s, border-color .3s;
+    opacity:0; animation:rise .6s cubic-bezier(.2,.8,.3,1) forwards;
+  }
+  @keyframes rise{from{opacity:0;transform:translateY(16px) scale(.98)}to{opacity:1;transform:none}}
+  .thumb{position:relative; aspect-ratio:120/76; overflow:hidden}
+  .thumb .th{width:100%; height:100%; display:block}
+  .thumb::after{
+    content:""; position:absolute; inset:0;
+    background:linear-gradient(180deg,rgba(13,5,36,0) 40%,rgba(13,5,36,.75));
+  }
+  .no{
+    position:absolute; right:9px; top:9px; z-index:2;
+    font-family:var(--mono); font-size:9px; letter-spacing:.12em; color:#fff;
+    background:rgba(13,5,36,.55); border:1px solid rgba(255,255,255,.3);
+    border-radius:999px; padding:2px 9px; backdrop-filter:blur(6px);
+  }
+  .body{padding:13px 14px 16px}
+  .ttl{font-size:15px; font-weight:700; color:#fff; line-height:1.45; letter-spacing:.02em}
+  .learn{font-size:11px; color:#bcaee0; line-height:1.85; margin-top:7px}
+  .go{
+    display:block; margin-top:11px; font-family:var(--mono); font-size:9px; letter-spacing:.18em;
+    color:var(--pink); transition:transform .3s ease;
+  }
+  a.card::after{
+    content:""; position:absolute; inset:0; border-radius:18px; pointer-events:none;
+    background:linear-gradient(135deg,rgba(255,95,158,.55),rgba(79,230,255,.55));
+    -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);
+    -webkit-mask-composite:xor; mask-composite:exclude; padding:1px;
+    opacity:0; transition:opacity .3s;
+  }
+  a.card:hover{transform:translateY(-6px); box-shadow:0 18px 44px rgba(255,95,158,.3)}
+  a.card:hover::after{opacity:1}
+  a.card:hover .go{transform:translateX(4px)}
+
+  footer{
+    margin-top:56px; padding-top:22px; border-top:1px solid rgba(255,255,255,.16);
+    font-family:var(--mono); font-size:10.5px; letter-spacing:.1em; color:var(--dim);
+    line-height:2.2; text-align:center;
+  }
+  footer a{color:var(--cyan); text-decoration:none}
+  footer a:hover{color:#fff}
+  footer .sep{opacity:.4; margin:0 8px}
+
+  @media(max-width:560px){
+    .wrap{padding:0 15px 70px}
+    header{padding-top:44px}
+    h1{font-size:21px}
+    .stats{gap:8px}
+    .stats b{font-size:31px}
+    .stats .dy b{font-size:17px; padding:8px 0 6px}
+    .stats i{letter-spacing:.2em}
+    .grid{gap:11px; grid-template-columns:repeat(2,1fr)}
+    .ttl{font-size:13.5px}
+    .learn{font-size:10.5px}
+  }
+  @media(prefers-reduced-motion:reduce){ a.card{animation:none;opacity:1} }
 </style>
 </head>
 <body>
+<div class="bgtop"><div class="sky"></div><div class="sun"></div></div>
+<div class="floor"></div>
+
 <div class="wrap">
 
   <header>
-    <h1>チュッピーゲームズ</h1>
-    <p class="romaji">CHUPPY GAMES</p>
-    <p class="tag">毎日ひとつ、<b>AIで小さなゲーム</b>を作っています。<br>ブラウザでそのまま遊べます。</p>
-    <p class="en">One small game every day, built with AI.</p>
-    <div class="counter">DAY <b>008</b></div>
+    <p class="tag">D A I L Y &nbsp;･&nbsp; G A M E S</p>
+    <h1>毎日ひとつ、<br><em>AIで小さなゲーム</em>を作る。</h1>
+    <p class="lede">1本ごとに、その日わかったことを添えています。<br>遊べる学習ノートのつもりで続けています。<br>ブラウザでそのまま動きます。</p>
+    <div class="stats">
+      <span><i>DAY</i><b>008</b></span>
+      <span class="pk"><i>GAMES</i><b>8<u>本</u></b></span>
+      <span class="dy"><i>MODE</i><b>DAILY</b></span>
+    </div>
   </header>
+
+  <p class="label">ARCHIVE<i></i>008 GAMES</p>
 
   <!-- 新しいゲームは、このすぐ下にコピーして追加していく -->
   <div class="grid">
-
-    <a class="card" href="day008/">
-      <div class="icon">🏮</div>
-      <div class="meta">
-        <div class="day">DAY 008</div>
-        <div class="title">かおはめ道</div>
-        <div class="learn"><span>学んだこと</span>　おはやしは、笛と太鼓とかねを別々に鳴らして重ねるだけで作れる</div>
+    <a class="card" href="day008/" style="animation-delay:0.03s">
+      <div class="thumb"><span class="no">008</span><svg class="th" viewBox="0 0 120 76" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><rect width="120" height="76" fill="#14110f"/><circle cx="60" cy="38" r="30" fill="#2a1a16"/><g transform="translate(24,30)"><rect x="-8" y="-16" width="16" height="3" rx="1" fill="#c9a227"/><ellipse cx="0" cy="0" rx="11" ry="14" fill="#e03a2f"/><path d="M-11 -6h22M-11 0h22M-11 6h22" stroke="#a82a22" stroke-width="1.2"/><rect x="-8" y="13" width="16" height="3" rx="1" fill="#c9a227"/></g><g transform="translate(98,44)"><ellipse cx="0" cy="0" rx="8" ry="10" fill="#e07b2f" opacity=".85"/></g><g transform="translate(62,40)"><rect x="-20" y="-20" width="40" height="42" rx="4" fill="#f2ead6" stroke="#c9a227" stroke-width="2"/><circle cx="0" cy="-4" r="10" fill="#14110f"/><path d="M-14 14h28" stroke="#e03a2f" stroke-width="3" stroke-linecap="round"/></g><circle cx="44" cy="14" r="1.6" fill="#ffc861" opacity=".8"/><circle cx="84" cy="20" r="1.2" fill="#ffc861" opacity=".6"/></svg></div>
+      <div class="body">
+        <div class="ttl">かおはめ道</div>
+        <div class="learn">おはやしは、笛と太鼓とかねを別々に鳴らして重ねるだけで作れる</div>
+        <span class="go">あそぶ ▸</span>
       </div>
-      <div class="go">→</div>
     </a>
 
-    <a class="card" href="day007/">
-      <div class="icon">⛄️</div>
-      <div class="meta">
-        <div class="day">DAY 007</div>
-        <div class="title">ゆきだまボウリング</div>
-        <div class="learn"><span>学んだこと</span>　奥行きは、遠いものを小さく上に描くだけで出せる</div>
+    <a class="card" href="day007/" style="animation-delay:0.08s">
+      <div class="thumb"><span class="no">007</span><svg class="th" viewBox="0 0 120 76" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><rect width="120" height="76" fill="#e6edf5"/><path d="M0 52q30-10 60 0t60 0v24H0z" fill="#fbfdff"/><g transform="translate(78,38)"><circle cx="0" cy="8" r="11" fill="#fff" stroke="#c4d3e4" stroke-width="1.2"/><circle cx="0" cy="-6" r="7.5" fill="#fff" stroke="#c4d3e4" stroke-width="1.2"/><circle cx="-2.6" cy="-7" r="1.3" fill="#2f3f52"/><circle cx="2.6" cy="-7" r="1.3" fill="#2f3f52"/><path d="M0 -4l5 1-5 1z" fill="#ff8a3d"/></g><g transform="translate(100,42)"><circle cx="0" cy="6" r="9" fill="#fff" stroke="#c4d3e4" stroke-width="1.2"/><circle cx="0" cy="-5" r="6" fill="#fff" stroke="#c4d3e4" stroke-width="1.2"/></g><g transform="translate(52,58) rotate(-72)"><circle cx="0" cy="6" r="9" fill="#cfdcea"/><circle cx="0" cy="-5" r="6" fill="#cfdcea"/></g><circle cx="20" cy="52" r="13" fill="#fff" stroke="#a9bed6" stroke-width="1.6"/><path d="M14 47q6 4 12 1" stroke="#c4d3e4" stroke-width="1.4" fill="none"/><path d="M34 52h8M36 58h9" stroke="#c4d3e4" stroke-width="1.6" stroke-linecap="round"/></svg></div>
+      <div class="body">
+        <div class="ttl">ゆきだまボウリング</div>
+        <div class="learn">奥行きは、遠いものを小さく上に描くだけで出せる</div>
+        <span class="go">あそぶ ▸</span>
       </div>
-      <div class="go">→</div>
     </a>
 
-    <a class="card" href="day006/">
-      <div class="icon">🎈</div>
-      <div class="meta">
-        <div class="day">DAY 006</div>
-        <div class="title">ふうせん チキンレース</div>
-        <div class="learn"><span>学んだこと</span>　一番安全な手が最強だと、駆け引きのゲームは成立しない</div>
+    <a class="card" href="day006/" style="animation-delay:0.13s">
+      <div class="thumb"><span class="no">006</span><svg class="th" viewBox="0 0 120 76" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><defs><linearGradient id="g6" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4a2a6b"/><stop offset="1" stop-color="#ff8a4c"/></linearGradient></defs><rect width="120" height="76" fill="url(#g6)"/><circle cx="96" cy="60" r="22" fill="#ffd08a" opacity=".35"/><g transform="translate(46,34)"><ellipse cx="0" cy="0" rx="21" ry="24" fill="#ff5f7e"/><ellipse cx="-7" cy="-8" rx="5" ry="7" fill="#ffb3c1" opacity=".85"/><path d="M-4 24h8l-4 5z" fill="#e04b68"/><path d="M0 29q6 8 0 16t0 12" stroke="#ffe0a3" stroke-width="1.6" fill="none"/></g><g stroke="#ffe9b0" stroke-width="1.6" stroke-linecap="round" opacity=".9"><path d="M76 18l6-6M84 26l8-3M78 34l7 5"/></g><circle cx="92" cy="16" r="2.6" fill="#ffe9b0"/><circle cx="106" cy="30" r="1.8" fill="#ffe9b0" opacity=".8"/></svg></div>
+      <div class="body">
+        <div class="ttl">ふうせん チキンレース</div>
+        <div class="learn">一番安全な手が最強だと、駆け引きのゲームは成立しない</div>
+        <span class="go">あそぶ ▸</span>
       </div>
-      <div class="go">→</div>
     </a>
 
-    <a class="card" href="day005/">
-      <div class="icon">🧱</div>
-      <div class="meta">
-        <div class="day">DAY 005</div>
-        <div class="title">つみつみタワー</div>
-        <div class="learn"><span>学んだこと</span>　音は録音しなくていい。波の形を指定するだけで鳴る</div>
+    <a class="card" href="day005/" style="animation-delay:0.18s">
+      <div class="thumb"><span class="no">005</span><svg class="th" viewBox="0 0 120 76" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><rect width="120" height="76" fill="#141a2e"/><circle cx="20" cy="14" r="1.4" fill="#5b6a99"/><circle cx="98" cy="12" r="1.2" fill="#5b6a99"/><circle cx="72" cy="8" r="1" fill="#5b6a99"/><circle cx="38" cy="24" r="1" fill="#5b6a99"/><circle cx="104" cy="34" r="10" fill="#f6e6a8" opacity=".22"/><rect x="34" y="60" width="52" height="10" rx="2" fill="#ffcf5c"/><rect x="38" y="50" width="44" height="10" rx="2" fill="#ff9f68"/><rect x="45" y="40" width="38" height="10" rx="2" fill="#ffcf5c"/><rect x="41" y="30" width="32" height="10" rx="2" fill="#ff9f68"/><rect x="48" y="20" width="26" height="10" rx="2" fill="#ffcf5c"/><rect x="52" y="11" width="20" height="9" rx="2" fill="#7fe3d0"/><path d="M0 70h120" stroke="#2a3350" stroke-width="6"/></svg></div>
+      <div class="body">
+        <div class="ttl">つみつみタワー</div>
+        <div class="learn">音は録音しなくていい。波の形を指定するだけで鳴る</div>
+        <span class="go">あそぶ ▸</span>
       </div>
-      <div class="go">→</div>
     </a>
 
-    <a class="card" href="day004/">
-      <div class="icon">🐟</div>
-      <div class="meta">
-        <div class="day">DAY 004</div>
-        <div class="title">ねこの さかなとり</div>
-        <div class="learn"><span>学んだこと</span>　全部同じ速さだと画面が単調。速さに差をつけると一気に生きてくる</div>
+    <a class="card" href="day004/" style="animation-delay:0.23s">
+      <div class="thumb"><span class="no">004</span><svg class="th" viewBox="0 0 120 76" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><defs><linearGradient id="g4" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffd9e6"/><stop offset="1" stop-color="#bfe9f7"/></linearGradient></defs><rect width="120" height="76" fill="url(#g4)"/><path d="M0 44c14 6 26 6 40 0s26-6 40 0 26 6 40 0v32H0z" fill="#7fd5e8" opacity=".85"/><path d="M0 54c14 6 26 6 40 0s26-6 40 0 26 6 40 0v22H0z" fill="#4fbcd6" opacity=".7"/><g transform="translate(34,30)"><path d="M-14-8l-3-12 11 6h12l11-6-3 12z" fill="#fff"/><ellipse cx="0" cy="2" rx="16" ry="14" fill="#fff"/><circle cx="-6" cy="0" r="2.2" fill="#3a3550"/><circle cx="6" cy="0" r="2.2" fill="#3a3550"/><path d="M-3 6q3 3 6 0" stroke="#3a3550" stroke-width="1.5" fill="none" stroke-linecap="round"/><path d="M-16 4h-8M-16 8h-8M16 4h8M16 8h8" stroke="#fff" stroke-width="1.4" stroke-linecap="round" opacity=".9"/></g><g transform="translate(88,52)"><ellipse cx="0" cy="0" rx="13" ry="8" fill="#ffb347"/><path d="M13 0l10-7v14z" fill="#ff9224"/><circle cx="-6" cy="-2" r="2" fill="#fff"/><circle cx="-6" cy="-2" r="1" fill="#33261c"/></g><circle cx="106" cy="18" r="3" fill="#fff" opacity=".7"/></svg></div>
+      <div class="body">
+        <div class="ttl">ねこの さかなとり</div>
+        <div class="learn">全部同じ速さだと画面が単調。速さに差をつけると生きてくる</div>
+        <span class="go">あそぶ ▸</span>
       </div>
-      <div class="go">→</div>
     </a>
 
-    <a class="card" href="day003/">
-      <div class="icon">🔨</div>
-      <div class="meta">
-        <div class="day">DAY 003</div>
-        <div class="title">もぐらたたき</div>
-        <div class="learn"><span>学んだこと</span>　叩くと時間が増えるゲームは、放っておくと永久に終わらない</div>
+    <a class="card" href="day003/" style="animation-delay:0.28s">
+      <div class="thumb"><span class="no">003</span><svg class="th" viewBox="0 0 120 76" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><rect width="120" height="76" fill="#cfe9f5"/><path d="M0 50c18-10 36-10 60 0s42 10 60 0v26H0z" fill="#8fd08a"/><ellipse cx="30" cy="55" rx="13" ry="5" fill="#4f8f57"/><ellipse cx="88" cy="59" rx="13" ry="5" fill="#4f8f57"/><ellipse cx="59" cy="50" rx="14" ry="5" fill="#3f7a48"/><g transform="translate(59,40)"><ellipse cx="0" cy="0" rx="11" ry="12" fill="#9a6b4b"/><ellipse cx="0" cy="5" rx="6" ry="4.5" fill="#e2b39a"/><circle cx="-4" cy="-2" r="1.7" fill="#241a16"/><circle cx="4" cy="-2" r="1.7" fill="#241a16"/><circle cx="0" cy="3" r="1.6" fill="#7d4a3c"/></g><g transform="translate(88,24) rotate(24)"><rect x="-4" y="0" width="8" height="26" rx="3" fill="#c9873f"/><rect x="-15" y="-13" width="30" height="15" rx="4" fill="#ff5a5f"/></g></svg></div>
+      <div class="body">
+        <div class="ttl">もぐらたたき</div>
+        <div class="learn">叩くと時間が増えるゲームは、放っておくと永久に終わらない</div>
+        <span class="go">あそぶ ▸</span>
       </div>
-      <div class="go">→</div>
     </a>
 
-    <a class="card" href="day002/">
-      <div class="icon">🥚</div>
-      <div class="meta">
-        <div class="day">DAY 002</div>
-        <div class="title">たまごわり</div>
-        <div class="learn"><span>学んだこと</span>　レアな当たりの確率は、勘で決めず実際に何万回も試して決める</div>
+    <a class="card" href="day002/" style="animation-delay:0.33s">
+      <div class="thumb"><span class="no">002</span><svg class="th" viewBox="0 0 120 76" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><rect width="120" height="76" fill="#ece3d2"/><circle cx="60" cy="36" r="26" fill="#f7f1e4"/><g transform="translate(60,40)"><path d="M0 -26c11 0 19 12 19 22a19 19 0 0 1-38 0c0-10 8-22 19-22z" fill="#fffdf7" stroke="#d8c9ab" stroke-width="1.4"/><path d="M-19 -2l7 5-6 5 8 4-5 5" stroke="#d8c9ab" stroke-width="1.6" fill="none" stroke-linejoin="round"/><path d="M19 -1l-7 5 6 5-8 4 5 5" stroke="#d8c9ab" stroke-width="1.6" fill="none" stroke-linejoin="round"/></g><path d="M60 6l2.6 6.4L69 15l-6.4 2.6L60 24l-2.6-6.4L51 15l6.4-2.6z" fill="#f2b53c"/><circle cx="26" cy="20" r="3" fill="#f2b53c" opacity=".8"/><circle cx="97" cy="27" r="2.2" fill="#f2b53c" opacity=".6"/></svg></div>
+      <div class="body">
+        <div class="ttl">たまごわり</div>
+        <div class="learn">レアな当たりの確率は、勘で決めず何万回も試して決める</div>
+        <span class="go">あそぶ ▸</span>
       </div>
-      <div class="go">→</div>
     </a>
 
-    <a class="card" href="day001/">
-      <div class="icon">✊</div>
-      <div class="meta">
-        <div class="day">DAY 001</div>
-        <div class="title">じゃんけん</div>
-        <div class="learn"><span>学んだこと</span>　グー・チョキ・パーの勝敗を、たった1行の計算で判定する方法</div>
+    <a class="card" href="day001/" style="animation-delay:0.38s">
+      <div class="thumb"><span class="no">001</span><svg class="th" viewBox="0 0 120 76" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><rect width="120" height="76" fill="#5b4bff"/><circle cx="60" cy="38" r="30" fill="#6f60ff"/><g transform="translate(25,38)"><rect x="-11" y="-6" width="21" height="17" rx="7" fill="#fff"/><circle cx="-6" cy="-6" r="4.4" fill="#fff"/><circle cx="0" cy="-7" r="4.6" fill="#fff"/><circle cx="6" cy="-6" r="4.4" fill="#fff"/><path d="M-10 3q-6 0-7-6" stroke="#fff" stroke-width="6" stroke-linecap="round" fill="none"/><path d="M-5 -1h11M-5 4h11" stroke="#5b4bff" stroke-width="1.3" stroke-linecap="round" opacity=".45"/></g><g transform="translate(60,38)"><rect x="-10" y="-2" width="20" height="12" rx="6" fill="#fff"/><path d="M-7 0l-4-14M4 0l6-13" stroke="#fff" stroke-width="5.5" stroke-linecap="round"/></g><g transform="translate(96,38)"><rect x="-10" y="-1" width="20" height="12" rx="6" fill="#fff"/><path d="M-8 1l-3-13M-3 -1l-1-15M3 -1l2-15M8 1l4-13" stroke="#fff" stroke-width="4.6" stroke-linecap="round"/></g></svg></div>
+      <div class="body">
+        <div class="ttl">じゃんけん</div>
+        <div class="learn">グー・チョキ・パーの勝敗を1行の計算で判定する方法</div>
+        <span class="go">あそぶ ▸</span>
       </div>
-      <div class="go">→</div>
     </a>
-
   </div>
 
   <footer>
-    すべて AI で制作 ／ ソースコードは <a href="https://github.com/chuppygames">GitHub</a> で公開<br>
-    <a href="https://instagram.com/chuppygames">@chuppygames</a>
+    ALL BUILT WITH AI<span class="sep">/</span><a href="https://github.com/chuppygames">GITHUB</a><br>
+    <a href="https://instagram.com/chuppygames">@CHUPPYGAMES</a><span class="sep">/</span>INSTAGRAM
   </footer>
 
 </div>
