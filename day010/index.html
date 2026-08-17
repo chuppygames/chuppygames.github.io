@@ -1,0 +1,757 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>深海クラゲとり｜Chuppy Games Day 010</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none; }
+
+  :root{
+    --deep: #041418;
+    --deep2: #072832;
+    --deep3: #0c3a46;
+    --surface: #0a2028;
+    --text: #d7f3f2;
+    --dim: #7fb9bc;
+    --gold: #ffd76a;
+    --danger: #ff6a5e;
+  }
+
+  html, body { height: 100%; overflow: hidden; }
+  body{
+    font-family: "Hiragino Maru Gothic ProN", "Yu Gothic", system-ui, sans-serif;
+    background: var(--deep);
+    color: var(--text);
+    position: relative;
+    min-height: 100vh;
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  #stage{
+    position: relative;
+    width: 100%; max-width: 460px; height: 100vh; max-height: 900px;
+    overflow: hidden;
+    background: linear-gradient(180deg, var(--deep) 0%, var(--deep2) 45%, var(--deep3) 100%);
+  }
+
+  canvas#c{ position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; }
+
+  /* ---- HUD ---- */
+  #hud{
+    position: absolute; top: 0; left: 0; right: 0; z-index: 5;
+    display: flex; justify-content: space-between; align-items: flex-start;
+    padding: 16px 16px 0;
+    pointer-events: none;
+  }
+  .pill{
+    background: rgba(4,20,24,0.55);
+    border: 1px solid rgba(215,243,242,0.22);
+    border-radius: 999px;
+    padding: 7px 16px;
+    backdrop-filter: blur(6px);
+    font-size: 12px; letter-spacing: 0.08em; color: var(--dim);
+    display: flex; align-items: center; gap: 6px;
+  }
+  .pill b{ font-size: 18px; color: var(--text); letter-spacing: 0.02em; }
+  #timePill b{ color: var(--gold); font-variant-numeric: tabular-nums; }
+  #soundBtn{
+    pointer-events: auto;
+    background: rgba(4,20,24,0.55);
+    border: 1px solid rgba(215,243,242,0.22);
+    border-radius: 999px;
+    width: 38px; height: 38px;
+    font-size: 16px; color: var(--text);
+    display: flex; align-items: center; justify-content: center;
+  }
+  #topRight{ display:flex; align-items:center; gap:8px; }
+
+  /* ---- overlays ---- */
+  .overlay{
+    position: absolute; inset: 0; z-index: 20;
+    display: flex; align-items: center; justify-content: center;
+    padding: 24px;
+    background: radial-gradient(ellipse at 50% 30%, rgba(12,58,70,0.55) 0%, rgba(4,20,24,0.92) 70%);
+    text-align: center;
+  }
+  .card{
+    width: 100%; max-width: 340px;
+    background: linear-gradient(180deg, rgba(10,32,40,0.92) 0%, rgba(6,20,26,0.96) 100%);
+    border: 1px solid rgba(215,243,242,0.22);
+    border-radius: 24px;
+    padding: 30px 24px 26px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+  }
+  .card h1{
+    font-size: 24px; letter-spacing: 0.06em; line-height: 1.5; margin-bottom: 10px;
+    color: var(--text);
+  }
+  .card p.sub{ font-size: 12.5px; color: var(--dim); line-height: 1.9; margin-bottom: 22px; }
+  .legend{ display:flex; justify-content:center; gap:18px; margin-bottom:24px; }
+  .legend div{ display:flex; flex-direction:column; align-items:center; gap:6px; font-size:10.5px; color: var(--dim); }
+  .legend .dot{ width:26px; height:26px; border-radius:50% 50% 46% 46%; }
+  .startBtn{
+    display: block; width: 100%;
+    background: linear-gradient(180deg, #3fd6c4, #1e9e97);
+    color: #04191c; font-weight: 700; font-size: 16px; letter-spacing: 0.05em;
+    border: none; border-radius: 999px; padding: 15px 0;
+    box-shadow: 0 8px 22px rgba(63,214,196,0.35);
+  }
+  .startBtn:active{ transform: scale(0.97); }
+
+  #result{ display:none; }
+  #result .score{
+    font-size: 56px; font-weight: 800; color: var(--gold);
+    text-shadow: 0 0 24px rgba(255,215,106,0.6);
+    line-height: 1; margin: 6px 0 4px;
+  }
+  #result .tier{
+    display:inline-block; font-size: 12px; letter-spacing: 0.14em; color: var(--dim);
+    border: 1px solid rgba(215,243,242,0.25); border-radius: 999px; padding: 4px 14px; margin-bottom: 16px;
+  }
+  #result .msg{ font-size: 13px; color: var(--text); line-height: 1.9; margin-bottom: 22px; }
+  #result .hint{ font-size: 11px; color: var(--dim); margin-top: -12px; margin-bottom: 22px; line-height:1.8; }
+
+  #banner{
+    position: absolute; left: 50%; top: 40%; transform: translate(-50%,-50%) scale(0.8);
+    z-index: 15; pointer-events: none;
+    background: linear-gradient(180deg, rgba(255,215,106,0.16), rgba(255,215,106,0.03));
+    border: 1px solid rgba(255,215,106,0.5);
+    border-radius: 18px;
+    padding: 16px 28px;
+    text-align: center;
+    opacity: 0; transition: opacity 0.35s ease, transform 0.35s ease;
+  }
+  #banner.show{ opacity: 1; transform: translate(-50%,-50%) scale(1); }
+  #banner .b1{ font-size: 20px; font-weight: 800; color: var(--gold); letter-spacing: 0.06em; text-shadow: 0 0 20px rgba(255,215,106,0.7); }
+  #banner .b2{ font-size: 11px; color: var(--text); margin-top: 4px; letter-spacing: 0.05em; }
+
+  #flash{
+    position: absolute; inset: 0; z-index: 12; pointer-events: none;
+    background: rgba(255,215,106,0.0);
+  }
+  #dangerFlash{
+    position: absolute; inset: 0; z-index: 12; pointer-events: none;
+    background: rgba(255,106,94,0.0);
+  }
+
+  .hidden{ display:none !important; }
+
+  @keyframes shakeStage{
+    0%,100%{ transform: translate(0,0); }
+    20%{ transform: translate(-6px,3px); }
+    40%{ transform: translate(5px,-4px); }
+    60%{ transform: translate(-4px,-2px); }
+    80%{ transform: translate(4px,3px); }
+  }
+  .shaking{ animation: shakeStage 0.32s ease; }
+</style>
+</head>
+<body>
+
+<div id="stage" class="shaking-target">
+  <canvas id="c"></canvas>
+
+  <div id="hud">
+    <div class="pill" id="scorePill">SCORE <b id="scoreVal">0</b></div>
+    <div id="topRight">
+      <div class="pill" id="timePill">TIME <b id="timeVal">30</b></div>
+      <button id="soundBtn">🔊</button>
+    </div>
+  </div>
+
+  <div id="flash"></div>
+  <div id="dangerFlash"></div>
+  <div id="banner"></div>
+
+  <div class="overlay" id="startOverlay">
+    <div class="card">
+      <h1>深海クラゲとり</h1>
+      <p class="sub">光るクラゲをタップして集めよう。<br>クラゲは速い。よく見て、まちがえないように。</p>
+      <div class="legend">
+        <div><span class="dot" style="background:radial-gradient(circle at 35% 30%, #eafcff, #9fe3e8 60%, #6fc6cc);box-shadow:0 0 10px rgba(159,227,232,.7)"></span>とる◎</div>
+        <div><span class="dot" style="background:radial-gradient(circle at 35% 30%, #fff3c2, #ffd76a 55%, #e0a53a);box-shadow:0 0 14px rgba(255,215,106,.85)"></span>レア◎</div>
+        <div><span class="dot" style="background:radial-gradient(circle at 35% 30%, #ffb3ac, #ff6a5e 55%, #c93f36)"></span>さける×</div>
+      </div>
+      <button class="startBtn" id="startBtn">はじめる ▸</button>
+    </div>
+  </div>
+
+  <div class="overlay" id="result">
+    <div class="card">
+      <h1 id="resultTitle">タイムアップ！</h1>
+      <div class="score" id="resultScore">0</div>
+      <div class="tier" id="resultTier">ふつう</div>
+      <div class="msg" id="resultMsg"></div>
+      <div class="hint" id="resultHint"></div>
+      <button class="startBtn" id="retryBtn">もう一度あそぶ ▸</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  var stage = document.getElementById('stage');
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+  var scoreVal = document.getElementById('scoreVal');
+  var timeVal = document.getElementById('timeVal');
+  var startOverlay = document.getElementById('startOverlay');
+  var startBtn = document.getElementById('startBtn');
+  var retryBtn = document.getElementById('retryBtn');
+  var resultEl = document.getElementById('result');
+  var resultScore = document.getElementById('resultScore');
+  var resultTier = document.getElementById('resultTier');
+  var resultMsg = document.getElementById('resultMsg');
+  var resultHint = document.getElementById('resultHint');
+  var soundBtn = document.getElementById('soundBtn');
+  var flashEl = document.getElementById('flash');
+  var dangerFlashEl = document.getElementById('dangerFlash');
+  var bannerEl = document.getElementById('banner');
+
+  var W = 0, H = 0, DPR = 1;
+  function resize(){
+    var r = stage.getBoundingClientRect();
+    W = r.width; H = r.height;
+    DPR = Math.min(window.devicePixelRatio || 1, 2.5);
+    canvas.width = Math.round(W * DPR);
+    canvas.height = Math.round(H * DPR);
+    ctx.setTransform(DPR,0,0,DPR,0,0);
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  // ---------------- Audio ----------------
+  var actx = null, bgmGain = null, sfxGain = null, bgmNodes = [], bgmOn = true, bgmStarted = false;
+  function ensureAudio(){
+    if(actx) return;
+    try{
+      actx = new (window.AudioContext || window.webkitAudioContext)();
+      bgmGain = actx.createGain(); bgmGain.gain.value = 0.22; bgmGain.connect(actx.destination);
+      sfxGain = actx.createGain(); sfxGain.gain.value = 0.55; sfxGain.connect(actx.destination);
+    }catch(e){ actx = null; }
+  }
+  function tone(freq, dur, type, gainNode, vol, delay, freqEnd){
+    if(!actx || !bgmOn) return;
+    delay = delay || 0;
+    var t0 = actx.currentTime + delay;
+    var osc = actx.createOscillator();
+    var g = actx.createGain();
+    osc.type = type || 'sine';
+    osc.frequency.setValueAtTime(freq, t0);
+    if(freqEnd) osc.frequency.exponentialRampToValueAtTime(Math.max(freqEnd,1), t0 + dur);
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.exponentialRampToValueAtTime(Math.max(vol,0.001), t0 + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    osc.connect(g); g.connect(gainNode);
+    osc.start(t0); osc.stop(t0 + dur + 0.05);
+  }
+  function playCatch(){ tone(760, 0.16, 'sine', sfxGain, 0.5, 0, 1200); }
+  function playRare(){
+    tone(660,0.14,'triangle', sfxGain, 0.5, 0, 990);
+    tone(990,0.18,'triangle', sfxGain, 0.4, 0.06, 1320);
+    tone(1320,0.2,'sine', sfxGain, 0.35, 0.12, 1760);
+  }
+  function playDanger(){ tone(140, 0.28, 'square', sfxGain, 0.4, 0, 60); }
+  function playBig(){
+    tone(523,0.2,'triangle', sfxGain, 0.4, 0);
+    tone(659,0.2,'triangle', sfxGain, 0.4, 0.12);
+    tone(784,0.2,'triangle', sfxGain, 0.4, 0.24);
+    tone(1046,0.4,'sine', sfxGain, 0.4, 0.36);
+  }
+
+  // short burst of filtered white noise — the "crackle" half of a firework pop
+  function noiseBurst(dur, vol, gainNode, delay, freqCenter, q){
+    if(!actx || !bgmOn) return;
+    delay = delay || 0;
+    var t0 = actx.currentTime + delay;
+    var bufferSize = Math.max(1, Math.floor(actx.sampleRate * dur));
+    var buffer = actx.createBuffer(1, bufferSize, actx.sampleRate);
+    var data = buffer.getChannelData(0);
+    for(var i=0;i<bufferSize;i++){ data[i] = Math.random()*2-1; }
+    var noise = actx.createBufferSource();
+    noise.buffer = buffer;
+    var filter = actx.createBiquadFilter();
+    filter.type = 'bandpass';
+    filter.frequency.value = freqCenter || 1400;
+    filter.Q.value = q || 0.9;
+    var g = actx.createGain();
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.exponentialRampToValueAtTime(Math.max(vol,0.001), t0 + 0.015);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    noise.connect(filter); filter.connect(g); g.connect(gainNode);
+    noise.start(t0); noise.stop(t0 + dur + 0.05);
+  }
+
+  // firework: a rising launch whistle, then (after `boomDelay`) a thump + crackle + a few sparkle ticks
+  function playFireworkLaunch(delay){
+    tone(480, 0.32, 'sine', sfxGain, 0.26, delay||0, 1500);
+  }
+  function playFireworkBoom(delay, big){
+    delay = delay || 0;
+    tone(big?68:88, 0.24, 'square', sfxGain, big?0.5:0.34, delay, 38);
+    noiseBurst(big?0.55:0.34, big?0.34:0.22, sfxGain, delay+0.03, big?2600:2000, 1.1);
+    var ticks = big?6:3;
+    for(var i=0;i<ticks;i++){
+      tone(1700+Math.random()*1700, 0.09, 'triangle', sfxGain, 0.12, delay+0.09+i*0.06+Math.random()*0.03, 850);
+    }
+  }
+  var bgmTimer = null;
+  function startBgm(){
+    if(!actx || bgmStarted) return;
+    bgmStarted = true;
+    var notes = [130.8,164.8,196.0,164.8];
+    var i = 0;
+    function step(){
+      if(!bgmStarted) return;
+      tone(notes[i % notes.length], 1.1, 'sine', bgmGain, 0.18, 0);
+      tone(notes[i % notes.length]*1.5, 1.0, 'sine', bgmGain, 0.08, 0.3);
+      i++;
+      bgmTimer = setTimeout(step, 900);
+    }
+    step();
+  }
+  function stopBgm(){
+    bgmStarted = false;
+    if(bgmTimer){ clearTimeout(bgmTimer); bgmTimer = null; }
+    if(actx && actx.state === 'running') actx.suspend();
+  }
+  function resumeAudioIfNeeded(){
+    if(actx && actx.state === 'suspended' && bgmOn) actx.resume();
+  }
+  ['visibilitychange','pagehide','blur'].forEach(function(evt){
+    window.addEventListener(evt, function(){
+      if(document.hidden || evt !== 'visibilitychange'){ stopBgm(); }
+    });
+  });
+  soundBtn.addEventListener('click', function(){
+    bgmOn = !bgmOn;
+    soundBtn.textContent = bgmOn ? '🔊' : '🔇';
+    if(bgmOn){ ensureAudio(); resumeAudioIfNeeded(); if(running) startBgm(); }
+    else { stopBgm(); }
+  });
+
+  // ---------------- Game state ----------------
+  var DURATION = 30;
+  var running = false;
+  var timeLeft = DURATION;
+  var score = 0;
+  var jellies = [];
+  var particles = [];
+  var floaters = [];
+  var lastT = 0;
+  var spawnAcc = 0;
+  var elapsed = 0;
+  var rafId = null;
+
+  // visual variants for "common" (good, +1)
+  var COMMON_VARIANTS = [
+    { name:'みずくらげ', top:'#eafcff', mid:'#9fe3e8', bot:'#5fa9b0', tent:'#bdeef2', ring:0 },
+    { name:'あおくらげ', top:'#f2e9ff', mid:'#b79bff', bot:'#7657c9', tent:'#d8c8ff', ring:0 },
+    { name:'たこくらげ', top:'#f4ffe0', mid:'#b7d97a', bot:'#7a9a4a', tent:'#dbeeb0', ring:1 }
+  ];
+  var RARE_VARIANT = { name:'にじくらげ', top:'#fff8dc', mid:'#ffd76a', bot:'#e0a53a', tent:'#ffe9a8', ring:2 };
+  var DANGER_VARIANTS = [
+    { name:'あかくらげ', top:'#ffd8d2', mid:'#ff6a5e', bot:'#c93f36', tent:'#ff9c92', spike:true },
+    { name:'どくくらげ', top:'#f0d8ff', mid:'#c15ee0', bot:'#7e309a', tent:'#e3a8ff', spike:true }
+  ];
+
+  function rand(a,b){ return a + Math.random()*(b-a); }
+  function pick(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
+
+  function spawnJelly(){
+    var r = Math.random();
+    var kind, variant, radius, value;
+    if(r < 0.33){
+      kind = 'common'; variant = pick(COMMON_VARIANTS); radius = rand(22,30); value = 1;
+    } else if(r < 0.43){
+      kind = 'rare'; variant = RARE_VARIANT; radius = rand(24,30); value = 5;
+    } else {
+      kind = 'danger'; variant = pick(DANGER_VARIANTS); radius = rand(22,28); value = -3;
+    }
+    var x = rand(radius+14, W-radius-14);
+    var riseTime = rand(1.7, 2.3);
+    jellies.push({
+      x: x, baseX: x, y: H + radius + 20, radius: radius,
+      kind: kind, variant: variant, value: value,
+      vy: (H + 100) / riseTime,
+      phase: rand(0, Math.PI*2), swingAmp: rand(18,34), swingFreq: rand(0.6,1.1),
+      bob: rand(0,Math.PI*2), scale: 1, alpha: 1, dead: false, tentPhase: rand(0,Math.PI*2)
+    });
+  }
+
+  function burst(x, y, color, count, spread, life){
+    for(var i=0;i<count;i++){
+      var ang = Math.random()*Math.PI*2;
+      var sp = rand(spread*0.3, spread);
+      particles.push({
+        x:x, y:y, vx: Math.cos(ang)*sp, vy: Math.sin(ang)*sp - rand(10,40),
+        life: life, maxLife: life, color: color, size: rand(2,4.5)
+      });
+    }
+  }
+
+  function floatText(x,y,text,color){
+    floaters.push({ x:x, y:y, text:text, color:color, life:0.9, maxLife:0.9 });
+  }
+
+  function flashScreen(el, colorRGB, peakAlpha, dur){
+    el.style.transition = 'none';
+    el.style.background = 'rgba(' + colorRGB + ',' + peakAlpha + ')';
+    requestAnimationFrame(function(){
+      el.style.transition = 'background ' + dur + 's ease-out';
+      el.style.background = 'rgba(' + colorRGB + ',0)';
+    });
+  }
+
+  function shakeStage(){
+    stage.classList.remove('shaking');
+    void stage.offsetWidth;
+    stage.classList.add('shaking');
+  }
+
+  function updateScoreUI(){ scoreVal.textContent = String(Math.max(score,0)); }
+
+  function onCatch(j){
+    j.dead = true;
+    if(j.kind === 'danger'){
+      score = Math.max(0, score + j.value);
+      updateScoreUI();
+      burst(j.x, j.y, '150,60,50', 22, 130, 0.5);
+      floatText(j.x, j.y, '' + j.value, '#ff6a5e');
+      flashScreen(dangerFlashEl, '255,106,94', 0.35, 0.35);
+      shakeStage();
+      playDanger();
+    } else if(j.kind === 'rare'){
+      score += j.value;
+      updateScoreUI();
+      burst(j.x, j.y, '255,215,106', 34, 180, 0.7);
+      floatText(j.x, j.y, '+' + j.value, '#ffd76a');
+      flashScreen(flashEl, '255,215,106', 0.28, 0.5);
+      playRare();
+    } else {
+      score += j.value;
+      updateScoreUI();
+      burst(j.x, j.y, '190,235,238', 16, 110, 0.5);
+      floatText(j.x, j.y, '+' + j.value, '#d7f3f2');
+      playCatch();
+    }
+  }
+
+  function pointerHit(px, py){
+    for(var i = jellies.length - 1; i >= 0; i--){
+      var j = jellies[i];
+      if(j.dead) continue;
+      var dx = px - j.x, dy = py - j.y;
+      var hitR = j.radius + 16;
+      if(dx*dx + dy*dy <= hitR*hitR){
+        onCatch(j);
+        return;
+      }
+    }
+  }
+
+  canvas.addEventListener('pointerdown', function(e){
+    if(!running) return;
+    ensureAudio(); resumeAudioIfNeeded();
+    var r = canvas.getBoundingClientRect();
+    pointerHit(e.clientX - r.left, e.clientY - r.top);
+  });
+
+  // ---------------- Drawing ----------------
+  function drawBackdropDots(t){
+    // ambient plankton
+    ctx.save();
+    for(var i=0;i<26;i++){
+      var px = (i * 53.7) % W;
+      var py = (H - ((t*8 + i*37) % (H+40)));
+      var tw = 0.35 + 0.35*Math.sin(t*1.4 + i);
+      ctx.globalAlpha = Math.max(0, tw);
+      ctx.fillStyle = '#bfeef0';
+      ctx.beginPath();
+      ctx.arc(px, py, 1.3, 0, Math.PI*2);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  function drawJelly(j){
+    var wob = Math.sin(j.bob) * 3;
+    var x = j.x, y = j.y + wob;
+    var r = j.radius * j.scale;
+    ctx.save();
+    ctx.globalAlpha = j.alpha;
+
+    // glow
+    var glowColor = j.kind === 'danger' ? 'rgba(255,106,94,0.28)' : (j.kind === 'rare' ? 'rgba(255,215,106,0.4)' : 'rgba(159,227,232,0.22)');
+    var grad = ctx.createRadialGradient(x, y, r*0.2, x, y, r*2.1);
+    grad.addColorStop(0, glowColor);
+    grad.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = grad;
+    ctx.beginPath(); ctx.arc(x, y, r*2.1, 0, Math.PI*2); ctx.fill();
+
+    // tentacles
+    ctx.strokeStyle = j.variant.tent;
+    ctx.lineWidth = Math.max(1.4, r*0.09);
+    ctx.lineCap = 'round';
+    ctx.globalAlpha = j.alpha * 0.75;
+    var tentCount = 6;
+    for(var i=0;i<tentCount;i++){
+      var tx = x + (i - (tentCount-1)/2) * (r*0.34);
+      var sway = Math.sin(j.tentPhase + i*0.7) * r*0.35;
+      ctx.beginPath();
+      ctx.moveTo(tx, y + r*0.65);
+      ctx.quadraticCurveTo(tx + sway*0.6, y + r*1.5, tx + sway, y + r*2.3);
+      ctx.stroke();
+    }
+    ctx.globalAlpha = j.alpha;
+
+    // bell
+    var bellGrad = ctx.createRadialGradient(x - r*0.25, y - r*0.3, r*0.15, x, y, r*1.05);
+    bellGrad.addColorStop(0, j.variant.top);
+    bellGrad.addColorStop(0.55, j.variant.mid);
+    bellGrad.addColorStop(1, j.variant.bot);
+    ctx.fillStyle = bellGrad;
+    ctx.beginPath();
+    if(j.variant.spike){
+      // spiky dome
+      ctx.moveTo(x - r, y);
+      var pts = 10;
+      for(var p=0;p<=pts;p++){
+        var a = Math.PI + (p/pts) * Math.PI;
+        var rr = r * (p % 2 === 0 ? 1 : 0.86);
+        ctx.lineTo(x + Math.cos(a)*rr, y + Math.sin(a)*rr*0.92);
+      }
+      ctx.closePath();
+    } else {
+      ctx.ellipse(x, y, r, r*0.86, 0, Math.PI, 0, false);
+      ctx.lineTo(x + r, y + r*0.12);
+      ctx.quadraticCurveTo(x, y + r*0.34, x - r, y + r*0.12);
+      ctx.closePath();
+    }
+    ctx.fill();
+
+    // ring pattern for たこくらげ / rare shimmer
+    if(j.variant.ring === 1){
+      ctx.strokeStyle = 'rgba(122,154,74,0.6)';
+      ctx.lineWidth = 1.2;
+      for(var rr2=0.3; rr2<0.9; rr2+=0.25){
+        ctx.beginPath();
+        ctx.ellipse(x, y, r*rr2, r*rr2*0.8, 0, 0, Math.PI*2);
+        ctx.stroke();
+      }
+    }
+    if(j.variant.ring === 2){
+      ctx.globalAlpha = j.alpha * (0.5 + 0.5*Math.sin(j.bob*2));
+      ctx.strokeStyle = '#fff8dc';
+      ctx.lineWidth = 1.6;
+      ctx.beginPath();
+      ctx.ellipse(x, y, r*1.15, r*0.98, 0, 0, Math.PI*2);
+      ctx.stroke();
+      ctx.globalAlpha = j.alpha;
+    }
+
+    // face dots
+    ctx.fillStyle = 'rgba(10,30,34,0.55)';
+    ctx.beginPath(); ctx.arc(x - r*0.22, y - r*0.05, r*0.06, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(x + r*0.22, y - r*0.05, r*0.06, 0, Math.PI*2); ctx.fill();
+
+    ctx.restore();
+  }
+
+  function drawParticles(dt){
+    for(var i=particles.length-1;i>=0;i--){
+      var p = particles[i];
+      p.life -= dt;
+      if(p.life <= 0){ particles.splice(i,1); continue; }
+      p.x += p.vx * dt; p.y += p.vy * dt; p.vy += 60*dt;
+      var a = Math.max(0, p.life/p.maxLife);
+      ctx.globalAlpha = a;
+      ctx.fillStyle = 'rgb(' + p.color + ')';
+      ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI*2); ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  function drawFloaters(dt){
+    for(var i=floaters.length-1;i>=0;i--){
+      var f = floaters[i];
+      f.life -= dt;
+      f.y -= 34*dt;
+      if(f.life <= 0){ floaters.splice(i,1); continue; }
+      var a = Math.max(0, f.life/f.maxLife);
+      ctx.globalAlpha = a;
+      ctx.fillStyle = f.color;
+      ctx.font = '700 15px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(f.text, f.x, f.y);
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  function loop(ts){
+    if(!lastT) lastT = ts;
+    var dt = Math.min(0.05, (ts - lastT) / 1000);
+    lastT = ts;
+
+    if(running){
+      elapsed += dt;
+      timeLeft = Math.max(0, DURATION - elapsed);
+      timeVal.textContent = String(Math.ceil(timeLeft));
+
+      var progress = Math.min(1, elapsed / DURATION);
+      var curInterval = 0.9 - 0.45 * progress;
+      spawnAcc += dt;
+      if(spawnAcc >= curInterval){
+        spawnAcc = 0;
+        spawnJelly();
+      }
+
+      for(var i=jellies.length-1;i>=0;i--){
+        var j = jellies[i];
+        j.y -= j.vy * dt;
+        j.bob += dt * 3.2;
+        j.tentPhase += dt * 2.4;
+        j.x = j.baseX + Math.sin(elapsed*j.swingFreq + j.phase) * j.swingAmp;
+        if(j.dead){
+          j.scale *= 0.86;
+          j.alpha *= 0.82;
+          if(j.alpha < 0.03) jellies.splice(i,1);
+          continue;
+        }
+        if(j.y < -j.radius - 40){
+          jellies.splice(i,1);
+        }
+      }
+
+      if(timeLeft <= 0){
+        endGame();
+      }
+    }
+
+    ctx.clearRect(0,0,W,H);
+    drawBackdropDots(elapsed);
+    for(var k=0;k<jellies.length;k++) drawJelly(jellies[k]);
+    drawParticles(dt);
+    drawFloaters(dt);
+
+    rafId = requestAnimationFrame(loop);
+  }
+
+  function resetGame(){
+    jellies = []; particles = []; floaters = [];
+    score = 0; elapsed = 0; spawnAcc = 0; timeLeft = DURATION;
+    updateScoreUI();
+    timeVal.textContent = String(DURATION);
+    bannerEl.className = ''; bannerEl.innerHTML = '';
+  }
+
+  function startGame(){
+    resetGame();
+    running = true;
+    resultEl.style.display = 'none';
+    startOverlay.style.display = 'none';
+    ensureAudio(); resumeAudioIfNeeded(); startBgm();
+  }
+
+  var SMALL_THRESHOLD = 2;
+  var LARGE_THRESHOLD = 9;
+
+  function showBanner(title, sub){
+    bannerEl.innerHTML = '<div class="b1">' + title + '</div><div class="b2">' + sub + '</div>';
+    bannerEl.classList.add('show');
+    setTimeout(function(){ bannerEl.classList.remove('show'); }, 2400);
+  }
+
+  function bigCelebration(){
+    // 4 waves at 0.5s intervals — each one gets its own launch-whistle + boom,
+    // timed under the visual burst it belongs to (see playFireworkLaunch/Boom)
+    var cx = W/2, cy = H*0.42;
+    burst(cx, cy, '255,215,106', 60, 220, 1.2);
+    flashScreen(flashEl, '255,215,106', 0.42, 0.6);
+    playFireworkLaunch(0);
+    playFireworkBoom(0.32, true);
+    setTimeout(function(){
+      burst(cx, cy, '215,243,242', 40, 200, 1.1);
+      shakeStage();
+      playFireworkLaunch(0);
+      playFireworkBoom(0.28, false);
+    }, 500);
+    setTimeout(function(){
+      flashScreen(flashEl, '255,215,106', 0.36, 0.6);
+      shakeStage();
+      burst(cx*0.6, cy, '255,215,106', 30, 180, 1.0);
+      burst(cx*1.4, cy, '255,215,106', 30, 180, 1.0);
+      playFireworkLaunch(0);
+      playFireworkBoom(0.22, false);
+      playFireworkBoom(0.34, false);
+    }, 1000);
+    setTimeout(function(){
+      showBanner('深海が輝いた！', 'たくさんのクラゲが集まったよ');
+      shakeStage();
+      playFireworkBoom(0, true);
+      playBig();
+    }, 1500);
+  }
+
+  function smallCelebration(){
+    var cx = W/2, cy = H*0.42;
+    burst(cx, cy, '190,235,238', 34, 150, 0.9);
+    flashScreen(flashEl, '190,235,238', 0.22, 0.5);
+    shakeStage();
+    showBanner('海がすこし光った', 'いいペースで集まってるよ');
+  }
+
+  function endGame(){
+    running = false;
+    stopBgm();
+    var s = Math.max(0, score);
+    resultScore.textContent = String(s);
+
+    var tier, msg, hint, resultDelay;
+    if(s >= LARGE_THRESHOLD){
+      tier = 'だいせいこう';
+      msg = 'すごい！深海が光でいっぱいになったよ。';
+      hint = 'つぎは にじくらげ を もっと ねらってみよう。';
+      resultTier.textContent = tier;
+      resultMsg.textContent = msg;
+      resultHint.textContent = hint;
+      setTimeout(bigCelebration, 200);
+      resultDelay = 2300; // let the 4-wave celebration play before covering it
+    } else if(s >= SMALL_THRESHOLD){
+      tier = 'せいこう';
+      msg = '海がほんのり光ったよ。いいかんじ！';
+      hint = 'あかい・むらさきのクラゲには ふれないように。';
+      resultTier.textContent = tier;
+      resultMsg.textContent = msg;
+      resultHint.textContent = hint;
+      setTimeout(smallCelebration, 200);
+      resultDelay = 1200; // let the small celebration play before covering it
+    } else {
+      tier = 'またチャレンジ';
+      msg = 'クラゲはまだまだたくさんいるよ。';
+      hint = '光るクラゲを追いかけて、はやめにタップしよう。';
+      resultTier.textContent = tier;
+      resultMsg.textContent = msg;
+      resultHint.textContent = hint;
+      resultDelay = 300;
+    }
+
+    setTimeout(function(){
+      resultEl.style.display = 'flex';
+    }, resultDelay);
+  }
+
+  startBtn.addEventListener('click', startGame);
+  retryBtn.addEventListener('click', function(){
+    resultEl.style.display = 'none';
+    startGame();
+  });
+
+  rafId = requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
