@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>たこ焼き ひっくりかえし｜Chuppy Games Day 011</title>
+<style>
+  :root{
+    --base:   #241209;
+    --base2:  #17090380;
+    --cream:  #fff3e0;
+    --gold:   #ffb648;
+    --dim:    #d8b79a;
+  }
+  *{ box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; user-select:none; }
+
+  body{
+    font-family:"Hiragino Maru Gothic ProN","Yu Gothic",system-ui,sans-serif;
+    min-height:100vh;
+    display:flex; align-items:center; justify-content:center;
+    background:#150a04;
+    color:var(--cream);
+    padding:18px;
+    overflow:hidden;
+    position:relative;
+  }
+  /* ---- 夕方の屋台の空気感 ---- */
+  body::before{
+    content:""; position:fixed; inset:0; z-index:0;
+    background:
+      radial-gradient(ellipse at 50% 18%, rgba(255,182,72,.20) 0%, transparent 55%),
+      radial-gradient(ellipse at 50% 100%, rgba(255,120,40,.16) 0%, transparent 60%),
+      linear-gradient(180deg, #2a140a 0%, #1c0d05 55%, #120802 100%);
+  }
+  .lantern{
+    position:fixed; top:-30px; width:46px; height:64px; border-radius:50% 50% 45% 45%;
+    background:linear-gradient(180deg,#4a2410,#2a1206);
+    border:2px solid rgba(255,182,72,.5);
+    box-shadow:0 0 22px rgba(255,140,50,.35);
+    z-index:0; opacity:.8;
+  }
+  .lantern::after{ content:""; position:absolute; inset:8px 14px; border-radius:50%; background:rgba(255,182,72,.35); filter:blur(3px); }
+  .l1{ left:6%; animation: sway 5.5s ease-in-out infinite; }
+  .l2{ right:7%; animation: sway 6.4s ease-in-out infinite .6s; }
+  @keyframes sway{ 0%,100%{ transform:rotate(-4deg); } 50%{ transform:rotate(4deg); } }
+
+  .steam{ position:fixed; bottom:-10px; z-index:0; font-size:20px; opacity:0; pointer-events:none;
+    animation: rise 6s linear infinite; filter:blur(.3px); }
+  @keyframes rise{
+    0%{ opacity:0; transform:translateY(0) translateX(0) scale(.7); }
+    12%{ opacity:.35; }
+    80%{ opacity:.15; }
+    100%{ opacity:0; transform:translateY(-72vh) translateX(14px) scale(1.3); }
+  }
+
+  .app{
+    position:relative; z-index:2;
+    width:100%; max-width:420px;
+    background:linear-gradient(180deg,#3a2010,#2a1508);
+    border:5px solid #150a04;
+    border-radius:24px;
+    padding:20px 18px 18px;
+    box-shadow:0 18px 50px rgba(0,0,0,.55), inset 0 0 0 2px rgba(255,182,72,.12);
+  }
+
+  h1{
+    font-size:20px; text-align:center; letter-spacing:.5px;
+    color:var(--gold); padding:0 34px;
+    text-shadow:0 3px 0 rgba(0,0,0,.5);
+  }
+  .sub{ text-align:center; font-size:11.5px; color:var(--dim); margin:5px 0 14px; font-weight:bold; }
+
+  .stage{
+    position:relative;
+    background:radial-gradient(ellipse at 50% 42%, #1a0f08 0%, #100905 70%);
+    border:3px solid #0e0602;
+    border-radius:18px;
+    padding:22px 14px 16px;
+    text-align:center;
+    box-shadow:inset 0 6px 18px rgba(0,0,0,.55);
+  }
+
+  .hole{
+    position:relative; width:132px; height:132px; margin:0 auto 14px;
+    border-radius:50%;
+    background:radial-gradient(circle at 38% 32%, #241005, #0b0503 72%);
+    box-shadow:inset 0 8px 16px rgba(0,0,0,.7), inset 0 -4px 10px rgba(255,140,40,.12);
+    display:flex; align-items:center; justify-content:center;
+  }
+  .tako{
+    width:92px; height:92px; border-radius:50%;
+    background:var(--cream);
+    box-shadow:0 5px 10px rgba(0,0,0,.45), inset -8px -10px 16px rgba(0,0,0,.18), inset 6px 8px 14px rgba(255,255,255,.25);
+    position:relative;
+    transition:background .12s linear;
+  }
+  .tako::after{ content:"᭼"; position:absolute; inset:0; }
+  .tako i{ position:absolute; width:5px; height:5px; border-radius:50%; background:rgba(20,10,5,.5); }
+  .tako .e1{ top:30%; left:26%; } .tako .e2{ top:60%; left:60%; } .tako .e3{ top:34%; left:66%; }
+
+  .flipping .tako{ animation: flip .38s ease-out; }
+  @keyframes flip{
+    0%{ transform:rotate(0) scale(1); }
+    45%{ transform:rotate(200deg) scale(1.12) translateY(-14px); }
+    100%{ transform:rotate(360deg) scale(1); }
+  }
+
+  .gauge{
+    position:relative; height:26px; border-radius:999px; margin:0 6px 4px;
+    background:linear-gradient(90deg, #6b4a28 0%, #6b4a28 55%, transparent 55%, transparent 70%, #7a2010 70%, #7a2010 100%);
+    border:2px solid #150a04;
+    overflow:visible;
+    box-shadow:inset 0 2px 6px rgba(0,0,0,.5);
+  }
+  .gaugeLabels{ display:flex; justify-content:space-between; font-size:9.5px; color:var(--dim); padding:0 8px; margin-bottom:10px; letter-spacing:.05em; }
+  .gaugeLabels .mid{ color:var(--gold); font-weight:bold; }
+  .gauge .zone{ position:absolute; top:-2px; bottom:-2px; background:rgba(255,182,72,.55); border-left:1px solid rgba(255,255,255,.5); border-right:1px solid rgba(255,255,255,.5); }
+  .gauge .zone::after{ content:""; position:absolute; inset:0; background:rgba(255,182,72,.35); animation:pulseZone 1s ease-in-out infinite; }
+  @keyframes pulseZone{ 0%,100%{ opacity:.5;} 50%{ opacity:1;} }
+  .needle{
+    position:absolute; top:-6px; width:5px; height:38px; left:0%;
+    background:var(--cream); border-radius:3px;
+    box-shadow:0 0 8px rgba(255,255,255,.7), 0 2px 4px rgba(0,0,0,.5);
+    transform:translateX(-50%);
+  }
+
+  .hud{ display:flex; justify-content:space-between; font-size:11px; color:var(--dim); padding:0 4px; letter-spacing:.04em; }
+  .hud b{ color:var(--gold); font-size:14px; }
+
+  .tray{ display:grid; grid-template-columns:repeat(10,1fr); gap:4px; margin-top:14px; }
+  .slot{
+    aspect-ratio:1; border-radius:50%;
+    background:#1a0f08; border:2px dashed rgba(255,243,224,.28);
+    position:relative;
+    display:flex; align-items:center; justify-content:center;
+    overflow:hidden;
+  }
+  .slot.filled{ background:transparent; border-color:transparent; }
+  .slot svg{ width:100%; height:100%; opacity:0; transform:scale(.2); animation:plop .3s cubic-bezier(.2,1.8,.4,1) forwards; }
+
+  .hint{ text-align:center; font-size:10.5px; color:var(--dim); margin-top:10px; opacity:.8; }
+
+  button.btn{
+    display:block; margin:16px auto 0; padding:12px 26px;
+    background:linear-gradient(180deg,#ffd58a,var(--gold));
+    color:#3a1e05; border:3px solid #150a04; border-radius:16px;
+    font-family:inherit; font-weight:bold; font-size:15px;
+    box-shadow:0 6px 0 #7a4207;
+    cursor:pointer; transition:transform .06s, box-shadow .06s;
+  }
+  button.btn:active{ transform:translateY(6px); box-shadow:0 0 0 #7a4207; }
+
+  .soundBtn{
+    position:absolute; top:14px; right:14px; z-index:5;
+    width:34px; height:34px; border-radius:50%;
+    background:rgba(0,0,0,.35); border:1px solid rgba(255,255,255,.25);
+    color:var(--cream); font-size:15px; display:flex; align-items:center; justify-content:center;
+    cursor:pointer;
+  }
+
+  .stallMascot{ position:absolute; top:4px; left:6px; z-index:3; pointer-events:none; animation:idleBounce 2.6s ease-in-out infinite; filter:drop-shadow(0 3px 4px rgba(0,0,0,.45)); }
+  @keyframes idleBounce{ 0%,100%{ transform:translateY(0) rotate(-4deg); } 50%{ transform:translateY(-4px) rotate(4deg); } }
+  .mascotWrap{ display:flex; justify-content:center; margin-bottom:2px; filter:drop-shadow(0 4px 6px rgba(0,0,0,.4)); }
+
+  /* ===== 演出エンジン ===== */
+  #fx{ position:fixed; inset:0; pointer-events:none; overflow:hidden; z-index:90; }
+  .coin{ position:absolute; top:-70px; animation: fall linear forwards; }
+  @keyframes fall{ to{ transform:translateY(110vh) rotate(760deg); } }
+
+  .spark{ position:absolute; bottom:-20px; animation: shoot 1.25s cubic-bezier(.12,.65,.35,1) forwards; }
+  @keyframes shoot{
+    0%{ transform:translate(0,0) rotate(0deg); opacity:1; }
+    70%{ opacity:1; }
+    100%{ transform:translate(var(--tx),var(--ty)) rotate(620deg); opacity:0; }
+  }
+
+  #flash{ position:fixed; inset:0; z-index:93; background:#fff; opacity:0; pointer-events:none; }
+  #flash.go{ animation: flashOut .45s ease-out forwards; }
+  @keyframes flashOut{ 0%{ opacity:.7; } 100%{ opacity:0; } }
+
+  .wiggle{ animation: wig .45s ease-in-out 2; }
+  @keyframes wig{ 0%,100%{ transform:rotate(0deg); } 25%{ transform:rotate(-2deg); } 75%{ transform:rotate(2deg); } }
+
+  #toast{
+    position:fixed; left:50%; top:16%; transform:translateX(-50%);
+    z-index:94; display:none;
+    background:var(--gold); color:#3a1e05;
+    border:4px solid #150a04; border-radius:999px;
+    padding:9px 22px; font-size:17px; font-weight:bold;
+    box-shadow:6px 6px 0 rgba(0,0,0,.45);
+  }
+  #toast.show{ display:block; animation: toastIn 1.3s ease-out forwards; }
+  @keyframes toastIn{
+    0%{ transform:translateX(-50%) scale(.4); opacity:0; }
+    18%{ transform:translateX(-50%) scale(1.1); opacity:1; }
+    30%,80%{ transform:translateX(-50%) scale(1); opacity:1; }
+    100%{ transform:translateX(-50%) translateY(-24px) scale(.9); opacity:0; }
+  }
+
+  #banner{ position:fixed; inset:0; z-index:95; display:none; align-items:center; justify-content:center; pointer-events:none; }
+  #banner.show{ display:flex; }
+  .bnr{
+    background:var(--gold); border:6px solid #150a04; border-radius:22px;
+    padding:20px 30px; text-align:center;
+    box-shadow:12px 12px 0 rgba(0,0,0,.5);
+    animation: burstIn .5s cubic-bezier(.2,1.8,.4,1);
+  }
+  @keyframes burstIn{ 0%{ transform:scale(.3) rotate(-10deg); opacity:0; } 100%{ transform:scale(1) rotate(-3deg); opacity:1; } }
+  .bnr .big{ font-size:32px; font-weight:bold; color:#3a1e05; line-height:1.25; }
+  .bnr .small{ font-size:13px; font-weight:bold; margin-top:6px; color:#5a3410; }
+
+  /* ---- スタート/結果 オーバーレイ ---- */
+  .overlay{
+    position:absolute; inset:0; z-index:10; border-radius:18px;
+    background:#140a05;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    text-align:center; padding:20px;
+  }
+  .overlay.hide{ display:none; }
+  .overlay .emoji{ font-size:46px; margin-bottom:6px; }
+  .overlay .msg{ font-size:22px; font-weight:bold; color:var(--gold); line-height:1.4; }
+  .overlay .score{ font-size:38px; font-weight:bold; color:var(--cream); margin:8px 0 2px; }
+  .overlay .scoreLabel{ font-size:10px; letter-spacing:.2em; color:var(--dim); }
+  .overlay .detail{ font-size:12px; color:var(--dim); margin-top:6px; line-height:1.7; max-width:280px; }
+
+  /* ---- できあがり lineup ---- */
+  .plateWrap{
+    margin:10px auto 2px; padding:12px 14px 9px; max-width:300px;
+    background:linear-gradient(180deg,#fff8ec,#f0dcb8);
+    border:2px solid #caa46a;
+    border-radius:46% 46% 12% 12% / 62% 62% 14% 14%;
+    box-shadow:0 8px 18px rgba(0,0,0,.4), inset 0 2px 4px rgba(255,255,255,.6);
+  }
+  .plateRow{ display:flex; flex-wrap:wrap; gap:3px; justify-content:center; align-items:flex-end; }
+  .plateRow svg{ opacity:0; transform:scale(.2) translateY(6px); animation:plop .32s cubic-bezier(.2,1.8,.4,1) forwards; filter:drop-shadow(0 2px 2px rgba(0,0,0,.35)); }
+  @keyframes plop{ to{ opacity:1; transform:scale(1) translateY(0); } }
+  .plateCount{ text-align:center; font-size:11px; color:#6a4418; font-weight:bold; margin-top:4px; letter-spacing:.06em; }
+</style>
+</head>
+<body>
+
+<div class="lantern l1"></div>
+<div class="lantern l2"></div>
+
+<div class="app" id="app">
+  <div class="soundBtn" id="soundBtn">🔊</div>
+  <h1>たこ焼き ひっくりかえし</h1>
+  <p class="sub">オレンジの帯に きたら すぐタップ！</p>
+
+  <div class="stage" id="stage">
+    <div class="stallMascot" id="stallMascot"></div>
+    <div class="hole">
+      <div class="tako" id="tako"><i class="e1"></i><i class="e2"></i><i class="e3"></i></div>
+    </div>
+    <div class="gauge" id="gauge">
+      <div class="zone" id="zone"></div>
+      <div class="needle" id="needle"></div>
+    </div>
+    <div class="gaugeLabels"><span>なま</span><span class="mid">ぴったり</span><span>こげ</span></div>
+    <div class="hud">
+      <span>ラウンド <b id="roundNo">0</b>/10</span>
+      <span>スコア <b id="score">0</b></span>
+      <span>れんぞく <b id="streak">0</b></span>
+    </div>
+  </div>
+
+  <div class="tray" id="tray"></div>
+  <p class="hint">はやすぎ＝なま／おそすぎ＝こげ／ぴったりで こんがり！</p>
+
+  <div class="overlay" id="startOverlay">
+    <div class="mascotWrap" id="startMascot"></div>
+    <div class="msg">やたいの たこ焼きを<br>ぜんぶ うまく やこう</div>
+    <div class="detail">オレンジ色の帯に 針がきたときに<br>画面をタップして ひっくり返す。<br>10こ やいたら しゅうりょう。</div>
+    <button class="btn" id="startBtn">はじめる</button>
+  </div>
+
+  <div class="overlay hide" id="endOverlay">
+    <div class="mascotWrap" id="endMascot"></div>
+    <div class="msg" id="endMsg"></div>
+    <div class="plateWrap"><div class="plateRow" id="plateRow"></div></div>
+    <div class="plateCount" id="plateCount"></div>
+    <div class="score" id="endScore">0</div>
+    <div class="scoreLabel">SCORE</div>
+    <div class="detail" id="endDetail"></div>
+    <button class="btn" id="retryBtn">もういちど やく</button>
+  </div>
+</div>
+
+<div id="fx"></div>
+<div id="flash"></div>
+<div id="toast"></div>
+<div id="banner"><div class="bnr"><div class="big" id="bnrBig"></div><div class="small" id="bnrSmall"></div></div></div>
+
+<script>
+/* ===== 演出エンジン ===== */
+const fx = document.getElementById('fx');
+const flash = document.getElementById('flash');
+const toast = document.getElementById('toast');
+const banner = document.getElementById('banner');
+const app = document.getElementById('app');
+const PARTS = ['✨','⭐️','🔥','🥢'];
+
+function goldRain(n){
+  for(let i=0;i<n;i++){
+    const c=document.createElement('div');
+    c.className='coin';
+    const r=Math.random();
+    c.textContent = r<0.2 ? '⭐️' : r<0.35 ? '🔥' : '✨';
+    c.style.left=(Math.random()*100)+'%';
+    c.style.fontSize=(16+Math.random()*22)+'px';
+    c.style.animationDelay=(Math.random()*0.9)+'s';
+    c.style.animationDuration=(1.4+Math.random()*1.2)+'s';
+    fx.appendChild(c);
+    setTimeout(()=>c.remove(),4000);
+  }
+}
+function burst(n){
+  for(let i=0;i<n;i++){
+    const s=document.createElement('div');
+    s.className='spark';
+    s.textContent=PARTS[Math.floor(Math.random()*PARTS.length)];
+    const fromLeft=i%2===0;
+    s.style.left=fromLeft?'6%':'auto';
+    s.style.right=fromLeft?'auto':'6%';
+    s.style.fontSize=(16+Math.random()*18)+'px';
+    s.style.setProperty('--tx',((fromLeft?1:-1)*(60+Math.random()*240))+'px');
+    s.style.setProperty('--ty',(-(200+Math.random()*300))+'px');
+    s.style.animationDelay=(Math.random()*0.25)+'s';
+    fx.appendChild(s);
+    setTimeout(()=>s.remove(),1800);
+  }
+}
+function poof(cls, count){
+  for(let i=0;i<count;i++){
+    const p=document.createElement('div');
+    p.className='spark';
+    p.textContent = cls==='raw' ? '💧' : cls==='burnt' ? '💨' : '✨';
+    p.style.left=(40+Math.random()*20)+'%';
+    p.style.fontSize=(14+Math.random()*10)+'px';
+    p.style.setProperty('--tx',((Math.random()-0.5)*140)+'px');
+    p.style.setProperty('--ty',(-(80+Math.random()*100))+'px');
+    p.style.animationDelay=(Math.random()*0.1)+'s';
+    fx.appendChild(p);
+    setTimeout(()=>p.remove(),1500);
+  }
+}
+function doFlash(){ flash.classList.remove('go'); void flash.offsetWidth; flash.classList.add('go'); }
+function shake(el){ el.classList.remove('wiggle'); void el.offsetWidth; el.classList.add('wiggle'); setTimeout(()=>el.classList.remove('wiggle'),1000); }
+function miniCelebrate(text){
+  goldRain(38); burst(16); shake(app);
+  toast.textContent=text;
+  toast.classList.remove('show'); void toast.offsetWidth; toast.classList.add('show');
+  setTimeout(()=>toast.classList.remove('show'),1400);
+}
+function celebrate(bigText, smallText){
+  doFlash(); goldRain(85); burst(34); shake(app);
+  document.getElementById('bnrBig').textContent=bigText;
+  document.getElementById('bnrSmall').textContent=smallText||'';
+  banner.classList.add('show');
+  setTimeout(()=>banner.classList.remove('show'),1900);
+}
+
+/* ===== 音 ===== */
+let actx=null, bgmGain=null, sfxGain=null, bgmOn=true, bgmTimer=null, bgmStep=0;
+function ensureAudio(){
+  if(actx) return;
+  actx = new (window.AudioContext||window.webkitAudioContext)();
+  bgmGain = actx.createGain(); bgmGain.gain.value=0.20; bgmGain.connect(actx.destination);
+  sfxGain = actx.createGain(); sfxGain.gain.value=0.55; sfxGain.connect(actx.destination);
+}
+function tone(freq, dur, type, gainNode, vol, delay){
+  if(!actx) return;
+  const t0=actx.currentTime+(delay||0);
+  const osc=actx.createOscillator(); const g=actx.createGain();
+  osc.type=type; osc.frequency.setValueAtTime(freq,t0);
+  g.gain.setValueAtTime(0,t0);
+  g.gain.linearRampToValueAtTime(vol,t0+0.015);
+  g.gain.exponentialRampToValueAtTime(0.0001,t0+dur);
+  osc.connect(g); g.connect(gainNode);
+  osc.start(t0); osc.stop(t0+dur+0.05);
+}
+function sfxPerfect(){ if(!actx||!bgmOn) return; tone(880,0.16,'triangle',sfxGain,0.5,0); tone(1320,0.18,'triangle',sfxGain,0.35,0.06); }
+function sfxRaw(){ if(!actx||!bgmOn) return; tone(220,0.22,'sine',sfxGain,0.4,0); }
+function sfxBurnt(){ if(!actx||!bgmOn) return; tone(180,0.3,'sawtooth',sfxGain,0.35,0); tone(120,0.3,'sawtooth',sfxGain,0.3,0.08); }
+function startBgm(){
+  if(!actx||!bgmOn) return;
+  const notes=[261.6,329.6,392.0,329.6];
+  bgmStep=0;
+  (function step(){
+    if(!bgmOn) return;
+    tone(notes[bgmStep%notes.length],0.5,'sine',bgmGain,0.18,0);
+    bgmStep++;
+    bgmTimer=setTimeout(step,420);
+  })();
+}
+function stopBgm(){ if(bgmTimer){ clearTimeout(bgmTimer); bgmTimer=null; } }
+function resumeAudioIfNeeded(){ if(actx && actx.state==='suspended' && bgmOn) actx.resume(); }
+['visibilitychange','pagehide','blur'].forEach(evt=>{
+  window.addEventListener(evt, ()=>{ if(document.hidden || evt!=='visibilitychange'){ stopBgm(); if(actx) actx.suspend(); } }, true);
+});
+document.getElementById('soundBtn').addEventListener('click', ()=>{
+  bgmOn=!bgmOn;
+  document.getElementById('soundBtn').textContent = bgmOn ? '🔊' : '🔇';
+  if(bgmOn){ ensureAudio(); resumeAudioIfNeeded(); if(gameRunning) startBgm(); }
+  else { stopBgm(); }
+});
+
+/* ===== ゲーム本体 ===== */
+const TOTAL_ROUNDS = 10;
+const CENTER = 62.5, HALF = 7.5; // ちょうどいい帯: 55〜70
+const RAW_HI = CENTER-HALF, BURN_LO = CENTER+HALF;
+function duration(n){ return Math.max(0.70, 1.50 - 0.08*(n-1)); } // 秒
+
+const tako = document.getElementById('tako');
+const needle = document.getElementById('needle');
+const zone = document.getElementById('zone');
+const gauge = document.getElementById('gauge');
+const stage = document.getElementById('stage');
+const roundNoEl = document.getElementById('roundNo');
+const scoreEl = document.getElementById('score');
+const streakEl = document.getElementById('streak');
+const tray = document.getElementById('tray');
+const startOverlay = document.getElementById('startOverlay');
+const endOverlay = document.getElementById('endOverlay');
+
+for(let i=0;i<TOTAL_ROUNDS;i++){
+  const s=document.createElement('div');
+  s.className='slot'; s.id='slot'+i;
+  tray.appendChild(s);
+}
+zone.style.left = RAW_HI+'%';
+zone.style.width = (BURN_LO-RAW_HI)+'%';
+
+let gameRunning=false, roundActive=false, round=0, score=0, streak=0, perfectCount=0, bigFired=false;
+let rafId=null, roundStartT=0, roundDur=1, gameId=0;
+
+function colorFor(value){
+  const v = Math.max(0, Math.min(100, value));
+  // 0: cream(255,243,224) -> 62.5: gold(255,182,72) -> 100: dark(38,20,8)
+  function lerp(a,b,t){ return Math.round(a+(b-a)*t); }
+  let r,g,b;
+  if(v<=CENTER){
+    const t=v/CENTER;
+    r=lerp(255,255,t); g=lerp(243,182,t); b=lerp(224,72,t);
+  } else {
+    const t=(v-CENTER)/(100-CENTER);
+    r=lerp(255,38,t); g=lerp(182,20,t); b=lerp(72,8,t);
+  }
+  return `rgb(${r},${g},${b})`;
+}
+
+function classify(value){
+  if(value < RAW_HI) return 'raw';
+  if(value <= BURN_LO) return 'perfect';
+  return 'burnt';
+}
+
+function beginRound(){
+  round++;
+  roundNoEl.textContent = round;
+  roundDur = duration(round)*1000;
+  roundStartT = performance.now();
+  roundActive = true;
+  stage.classList.remove('flipping');
+  needle.style.left='0%';
+  tako.style.background = colorFor(0);
+  tick();
+}
+function tick(){
+  if(!roundActive) return;
+  const elapsed = performance.now()-roundStartT;
+  const value = elapsed/roundDur*100;
+  needle.style.left = Math.min(value,100)+'%';
+  tako.style.background = colorFor(value);
+  if(elapsed >= roundDur*1.3){
+    resolveRound(value);
+    return;
+  }
+  rafId = requestAnimationFrame(tick);
+}
+function resolveRound(value){
+  roundActive=false;
+  cancelAnimationFrame(rafId);
+  const result = classify(value);
+  stage.classList.add('flipping');
+
+  const slot = document.getElementById('slot'+(round-1));
+  slot.classList.add(result, 'filled');
+  slot.innerHTML = takoIconMarkup(result, 'g'+gameId+'tray'+(round-1), 26);
+
+  if(result==='perfect'){
+    score += 100 + streak*10;
+    streak++;
+    perfectCount++;
+    poof('perfect',10);
+    sfxPerfect();
+    if(streak>0 && streak%3===0){ miniCelebrate(streak+'れんぞく こんがり！'); }
+    if(perfectCount>=8 && !bigFired){ bigFired=true; celebrate('やたいの かんばんメニュー！','こんがり '+perfectCount+'こ たっせい'); }
+  } else if(result==='raw'){
+    score += 20;
+    streak=0;
+    poof('raw',8);
+    sfxRaw();
+  } else {
+    streak=0;
+    poof('burnt',8);
+    sfxBurnt();
+  }
+  scoreEl.textContent = score;
+  streakEl.textContent = streak;
+
+  setTimeout(()=>{
+    if(round>=TOTAL_ROUNDS){ endGame(); }
+    else { beginRound(); }
+  }, 480);
+}
+
+function takoIconMarkup(result, idKey, size){
+  size = size || 28;
+  if(result==='perfect'){
+    return `<svg viewBox="0 0 36 36" width="${size}" height="${size}">
+      <defs><radialGradient id="${idKey}" cx="35%" cy="30%" r="75%"><stop offset="0" stop-color="#ffe1a0"/><stop offset="60%" stop-color="#e8a13d"/><stop offset="100%" stop-color="#b97a1f"/></radialGradient></defs>
+      <circle cx="18" cy="19" r="15" fill="url(#${idKey})"/>
+      <path d="M5 15q4-5 8 0t8 0t8 0" stroke="#7a3a12" stroke-width="1.6" fill="none" stroke-linecap="round" opacity=".85"/>
+      <path d="M6 21q4-4 8 0t8 0t8 0" stroke="#fff8ec" stroke-width="1.3" fill="none" stroke-linecap="round" opacity=".9"/>
+      <ellipse cx="12" cy="10" rx="1.6" ry="1" fill="#8fae4f" opacity=".85" transform="rotate(20 12 10)"/>
+      <ellipse cx="23" cy="9" rx="1.6" ry="1" fill="#8fae4f" opacity=".85" transform="rotate(-15 23 9)"/>
+      <path d="M14 26q2 2 4 0" stroke="#e0a992" stroke-width="1.6" fill="none" stroke-linecap="round" opacity=".9"/>
+      <path d="M20 27q2 1.6 4-.4" stroke="#e0a992" stroke-width="1.6" fill="none" stroke-linecap="round" opacity=".9"/>
+    </svg>`;
+  }
+  if(result==='raw'){
+    return `<svg viewBox="0 0 36 36" width="${size}" height="${size}">
+      <circle cx="18" cy="19" r="15" fill="#fff3e0" stroke="#c9a877" stroke-width="1.5"/>
+      <circle cx="14" cy="16" r="1.1" fill="#c9a877" opacity=".6"/>
+      <circle cx="22" cy="18" r="1.1" fill="#c9a877" opacity=".6"/>
+    </svg>`;
+  }
+  return `<svg viewBox="0 0 36 36" width="${size}" height="${size}">
+      <circle cx="18" cy="19" r="15" fill="#26150c" stroke="#1a0d05" stroke-width="1.5"/>
+      <text x="18" y="13" font-size="10" text-anchor="middle">💨</text>
+    </svg>`;
+}
+function buildPlate(){
+  const plateRow = document.getElementById('plateRow');
+  plateRow.innerHTML='';
+  for(let i=0;i<TOTAL_ROUNDS;i++){
+    const slotEl = document.getElementById('slot'+i);
+    let result='raw';
+    if(slotEl.classList.contains('perfect')) result='perfect';
+    else if(slotEl.classList.contains('burnt')) result='burnt';
+    const wrap=document.createElement('div');
+    wrap.innerHTML = takoIconMarkup(result, 'g'+gameId+'plate'+i, 30);
+    const svgEl = wrap.firstElementChild;
+    svgEl.style.animationDelay=(i*90)+'ms';
+    plateRow.appendChild(svgEl);
+  }
+  const finishDelay = TOTAL_ROUNDS*90 + 350;
+  setTimeout(()=>{ burst(14); }, finishDelay);
+}
+
+/* ===== たこさんマスコット ===== */
+function octopusSVG(mood, size, idKey){
+  size = size || 60;
+  idKey = idKey || 'oct';
+  let eyes, mouth;
+  if(mood==='happy'){
+    eyes = `<path d="M18 24q4-5 8 0" stroke="#2b1710" stroke-width="3" fill="none" stroke-linecap="round"/>
+      <path d="M38 24q4-5 8 0" stroke="#2b1710" stroke-width="3" fill="none" stroke-linecap="round"/>`;
+    mouth = `<ellipse cx="32" cy="35" rx="5" ry="4.2" fill="#7a1a10"/><ellipse cx="32" cy="33.2" rx="2.6" ry="1.6" fill="#ffb6a8" opacity=".6"/>`;
+  } else if(mood==='sweat'){
+    eyes = `<circle cx="23" cy="27" r="3" fill="#2b1710"/><circle cx="41" cy="27" r="3" fill="#2b1710"/>
+      <circle cx="21.8" cy="25.6" r="1" fill="#fff"/><circle cx="39.8" cy="25.6" r="1" fill="#fff"/>
+      <path d="M18 21l6 2M46 21l-6 2" stroke="#7a1a10" stroke-width="2" stroke-linecap="round"/>
+      <ellipse cx="50" cy="19" rx="3" ry="4.4" fill="#bfe3ff" opacity=".85"/>`;
+    mouth = `<path d="M27 35q5 3 10 0" stroke="#7a1a10" stroke-width="2.2" fill="none" stroke-linecap="round"/>`;
+  } else {
+    eyes = `<circle cx="23" cy="26" r="3.4" fill="#2b1710"/><circle cx="41" cy="26" r="3.4" fill="#2b1710"/>
+      <circle cx="21.7" cy="24.6" r="1.1" fill="#fff"/><circle cx="39.7" cy="24.6" r="1.1" fill="#fff"/>`;
+    mouth = `<ellipse cx="32" cy="34" rx="3" ry="2.6" fill="#7a1a10"/>`;
+  }
+  return `<svg viewBox="0 0 64 64" width="${size}" height="${size}">
+    <defs><radialGradient id="${idKey}g" cx="34%" cy="28%" r="75%"><stop offset="0" stop-color="#ff9a72"/><stop offset="55%" stop-color="#f0603c"/><stop offset="100%" stop-color="#c93a20"/></radialGradient></defs>
+    <g stroke="#d94226" stroke-width="8" stroke-linecap="round" fill="none">
+      <path d="M14 44Q8 52 12 60"/>
+      <path d="M20 44Q16 52 19 60"/>
+      <path d="M26 44Q24 53 25 60"/>
+      <path d="M32 44Q30 52 32 60"/>
+      <path d="M38 44Q40 53 39 60"/>
+      <path d="M44 44Q48 52 45 60"/>
+      <path d="M50 44Q56 52 52 60"/>
+    </g>
+    <circle cx="32" cy="26" r="20" fill="url(#${idKey}g)"/>
+    <ellipse cx="19" cy="30" rx="4" ry="2.6" fill="#ffd9cf" opacity=".55"/>
+    <ellipse cx="45" cy="30" rx="4" ry="2.6" fill="#ffd9cf" opacity=".55"/>
+    ${eyes}
+    ${mouth}
+  </svg>`;
+}
+document.getElementById('startMascot').innerHTML = octopusSVG('happy', 78, 'startOct');
+document.getElementById('stallMascot').innerHTML = octopusSVG('normal', 38, 'stallOct');
+
+function endGame(){
+  gameRunning=false;
+  stopBgm();
+  let msg, mood, detail;
+  if(perfectCount===10){ msg='でんせつの たこ焼き職人！'; mood='happy'; detail='10こ ぜんぶ こんがり！ かんぺきな うでまえ。'; }
+  else if(perfectCount>=8){ msg='やたいの かんばんメニュー たっせい！'; mood='happy'; detail=perfectCount+'こ こんがり やけた！'; }
+  else if(perfectCount>=5){ msg='なかなかの うでまえ！'; mood='normal'; detail=perfectCount+'こ こんがり。もう少しで看板メニュー！'; }
+  else { msg='しゅぎょう中…！'; mood='sweat'; detail='オレンジの帯に 針がきた しゅんかんに タップしてみよう。'; }
+  document.getElementById('endMascot').innerHTML = octopusSVG(mood, 60, 'endOct'+gameId);
+  document.getElementById('endMsg').textContent=msg;
+  document.getElementById('endScore').textContent=score;
+  document.getElementById('endDetail').textContent=detail;
+  document.getElementById('plateCount').textContent=perfectCount+'こ こんがり できた！';
+  endOverlay.classList.remove('hide');
+  buildPlate();
+}
+
+function startGame(){
+  ensureAudio(); resumeAudioIfNeeded();
+  gameId++;
+  gameRunning=true; round=0; score=0; streak=0; perfectCount=0; bigFired=false;
+  scoreEl.textContent=0; streakEl.textContent=0;
+  for(let i=0;i<TOTAL_ROUNDS;i++){
+    const s=document.getElementById('slot'+i);
+    s.className='slot';
+    s.innerHTML='';
+  }
+  startOverlay.classList.add('hide');
+  endOverlay.classList.add('hide');
+  if(bgmOn) startBgm();
+  beginRound();
+}
+
+document.getElementById('startBtn').addEventListener('click', startGame);
+document.getElementById('retryBtn').addEventListener('click', startGame);
+
+stage.addEventListener('click', ()=>{
+  if(!roundActive) return;
+  const elapsed = performance.now()-roundStartT;
+  const value = elapsed/roundDur*100;
+  resolveRound(value);
+});
+</script>
+</body>
+</html>
