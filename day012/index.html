@@ -1,0 +1,691 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>きんぎょすくい｜Chuppy Games Day 012</title>
+<style>
+  /* ===== ハウススタイル ここから ===== */
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; user-select: none; }
+
+  body {
+    font-family: "Hiragino Maru Gothic ProN", "Yu Gothic", system-ui, sans-serif;
+    min-height: 100vh;
+    display: flex; align-items: center; justify-content: center;
+    background: #ffb23c;
+    color: #22303a;
+    padding: 18px;
+    overflow: hidden;
+    position: relative;
+  }
+  body::before {
+    content: "";
+    position: fixed; inset: 0;
+    background:
+      repeating-linear-gradient(90deg, rgba(255,90,60,0.9) 0 34px, rgba(255,246,228,0.95) 34px 68px);
+    z-index: -2;
+  }
+  body::after {
+    content: "";
+    position: fixed; inset: 0;
+    background: radial-gradient(circle at 50% -10%, rgba(255,246,228,0.9) 0%, rgba(255,178,60,0.55) 55%, rgba(255,138,40,0.35) 100%);
+    z-index: -1;
+  }
+
+  .app {
+    position: relative; z-index: 2;
+    width: 100%; max-width: 440px;
+    background: #fff6e4;
+    border: 5px solid #22303a;
+    border-radius: 26px;
+    padding: 18px 16px 18px;
+    box-shadow: 10px 10px 0 rgba(30,20,10,0.35);
+  }
+
+  h1 {
+    font-size: 27px; text-align: center; letter-spacing: 2px;
+    color: #ff5a3c;
+    -webkit-text-stroke: 1.3px #22303a;
+    text-shadow: 0 3px 0 #ffd36e;
+    margin-bottom: 2px;
+  }
+  .sub { text-align: center; font-size: 11px; opacity: 0.65; margin-bottom: 12px; font-weight: bold; }
+
+  .hud { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+  .hud-item {
+    background: #eafcff; border: 3px solid #22303a; border-radius: 13px;
+    padding: 6px 10px; font-weight: bold;
+  }
+  .hud-item.score { min-width: 84px; text-align: center; }
+  .hud-label { display: block; font-size: 9px; opacity: 0.6; letter-spacing: 0.1em; margin-bottom: 1px; }
+  #scoreVal { font-size: 20px; color: #ff5a3c; }
+  .hud-item.durability { flex: 1; }
+  .durabilityWrap {
+    width: 100%; height: 12px; border-radius: 999px; background: #cfd8de;
+    border: 2px solid #22303a; overflow: hidden; margin-top: 2px;
+  }
+  .durabilityFill {
+    height: 100%; width: 100%; border-radius: 999px;
+    background: linear-gradient(90deg, #ffd36e, #ff9c3c);
+    transition: width 0.25s ease, background 0.4s ease;
+  }
+  .soundBtn {
+    background: #fff; border: 3px solid #22303a; border-radius: 12px;
+    width: 38px; height: 38px; font-size: 16px; cursor: pointer;
+    box-shadow: 0 4px 0 #22303a;
+  }
+  .soundBtn:active { transform: translateY(4px); box-shadow: none; }
+
+  .panel {
+    background: #cdeff2;
+    border: 3px solid #22303a;
+    border-radius: 16px;
+    padding: 8px;
+  }
+
+  .tank {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 3 / 4;
+    border-radius: 12px;
+    overflow: hidden;
+    background: radial-gradient(circle at 30% 15%, #d7fbff 0%, #7fe6e0 42%, #24a7c9 78%, #147ea3 100%);
+    touch-action: none;
+    cursor: grab;
+  }
+  .tank::before {
+    content: "";
+    position: absolute; inset: 0;
+    background:
+      repeating-radial-gradient(circle at 20% 30%, rgba(255,255,255,0.18) 0 2px, transparent 2px 46px),
+      repeating-radial-gradient(circle at 75% 65%, rgba(255,255,255,0.14) 0 2px, transparent 2px 60px);
+    animation: ripple 6s linear infinite;
+    pointer-events: none;
+  }
+  @keyframes ripple { from { background-position: 0 0, 0 0; } to { background-position: 0 46px, 0 60px; } }
+
+  .awning {
+    position: absolute; top: 0; left: 0; right: 0; height: 22px; z-index: 3;
+    background: repeating-linear-gradient(90deg, #ff5a3c 0 18px, #fff6e4 18px 36px);
+    border-bottom: 3px solid #22303a;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+  }
+  .awning::after {
+    content: "";
+    position: absolute; left: 0; right: 0; top: 22px; height: 8px;
+    background: repeating-linear-gradient(90deg, transparent 0 10px, #22303a 10px 11px);
+    opacity: 0.25;
+  }
+
+  .fishLayer { position: absolute; inset: 0; z-index: 2; }
+  .fish {
+    position: absolute; width: 40px; height: 24px;
+    transform: translate(-50%, -50%);
+    filter: drop-shadow(0 2px 2px rgba(0,0,0,0.18));
+    will-change: left, top, transform;
+  }
+  .fish svg { width: 100%; height: 100%; overflow: visible; }
+  .fish.fleeing { transition: left 0.35s ease-out, top 0.35s ease-out, opacity 0.35s ease-out; opacity: 0; }
+  .fish.caught { transition: transform 0.3s ease-in, opacity 0.3s ease-in; transform: translate(-50%,-50%) scale(0.2); opacity: 0; }
+
+  .poi {
+    position: absolute; z-index: 5; width: 74px; height: 90px;
+    transform: translate(-50%, -50%);
+    pointer-events: none; display: none;
+  }
+  .poi.active { display: block; }
+  .poiStick { position: absolute; left: 50%; top: 46px; width: 5px; height: 44px; background: #9a6a34; border-radius: 3px; transform: translateX(-50%); }
+  .poiRing { position: absolute; left: 50%; top: 0; width: 62px; height: 62px; border-radius: 50%; border: 4px solid #d6b06a; transform: translateX(-50%); box-shadow: 0 3px 4px rgba(0,0,0,0.2); }
+  .poiPaper {
+    position: absolute; left: 50%; top: 0; width: 54px; height: 54px; border-radius: 50%;
+    transform: translateX(-50%);
+    background: radial-gradient(circle at 40% 35%, rgba(255,255,255,0.95), rgba(255,246,228,0.55) 70%, rgba(255,246,228,0.15) 100%);
+    border: 1px solid rgba(34,48,58,0.25);
+    transition: opacity 0.3s ease, filter 0.3s ease;
+  }
+  .poiPaper.wet { filter: saturate(0.6) brightness(0.85); }
+  .poiPaper.torn { background-image: radial-gradient(circle at 55% 60%, transparent 0 6px, rgba(255,246,228,0.2) 6px 8px, transparent 8px); }
+
+  button.btn {
+    background: #fff; color: inherit;
+    border: 4px solid #22303a; border-radius: 16px;
+    box-shadow: 0 6px 0 #22303a;
+    cursor: pointer; font-family: inherit; font-weight: bold;
+    transition: transform 0.06s, box-shadow 0.06s, background 0.15s;
+  }
+  button.btn:active { transform: translateY(6px); box-shadow: 0 0 0 #22303a; }
+
+  /* ===== 演出エンジン ここから(触らない) ===== */
+  #fx { position: fixed; inset: 0; pointer-events: none; overflow: hidden; z-index: 90; }
+  .coin { position: absolute; top: -70px; animation: fall linear forwards; }
+  @keyframes fall { to { transform: translateY(110vh) rotate(760deg); } }
+
+  .spark { position: absolute; bottom: -20px; animation: shoot 1.25s cubic-bezier(.12,.65,.35,1) forwards; }
+  @keyframes shoot {
+    0%   { transform: translate(0,0) rotate(0deg); opacity: 1; }
+    70%  { opacity: 1; }
+    100% { transform: translate(var(--tx), var(--ty)) rotate(620deg); opacity: 0; }
+  }
+
+  #flash { position: fixed; inset: 0; z-index: 93; background: #fff; opacity: 0; pointer-events: none; }
+  #flash.go { animation: flashOut 0.45s ease-out forwards; }
+  @keyframes flashOut { 0% { opacity: 0.75; } 100% { opacity: 0; } }
+
+  .wiggle { animation: wig 0.45s ease-in-out 2; }
+  @keyframes wig {
+    0%,100% { transform: rotate(0deg); }
+    25% { transform: rotate(-2.5deg); }
+    75% { transform: rotate(2.5deg); }
+  }
+
+  #toast {
+    position: fixed; left: 50%; top: 18%; transform: translateX(-50%);
+    z-index: 94; display: none;
+    background: #24d17a; color: #fff;
+    border: 4px solid #22303a; border-radius: 999px;
+    padding: 9px 22px; font-size: 18px; font-weight: bold;
+    box-shadow: 6px 6px 0 rgba(20,10,60,0.35);
+    -webkit-text-stroke: 0.6px #22303a;
+  }
+  #toast.show { display: block; animation: toastIn 1.3s ease-out forwards; }
+  @keyframes toastIn {
+    0%   { transform: translateX(-50%) scale(0.4); opacity: 0; }
+    18%  { transform: translateX(-50%) scale(1.1); opacity: 1; }
+    30%,80% { transform: translateX(-50%) scale(1); opacity: 1; }
+    100% { transform: translateX(-50%) translateY(-24px) scale(0.9); opacity: 0; }
+  }
+
+  #banner { position: fixed; inset: 0; z-index: 95; display: none; align-items: center; justify-content: center; pointer-events: none; }
+  #banner.show { display: flex; }
+  .bnr {
+    background: #ffd93d; border: 6px solid #22303a; border-radius: 22px;
+    padding: 20px 30px; text-align: center;
+    box-shadow: 12px 12px 0 rgba(30,20,10,0.4);
+    animation: burstIn 0.5s cubic-bezier(.2,1.8,.4,1);
+  }
+  @keyframes burstIn { 0%{transform:scale(0.3) rotate(-12deg); opacity:0} 100%{transform:scale(1) rotate(-4deg); opacity:1} }
+  .bnr .big { font-size: 38px; font-weight: bold; color: #ff5a3c; -webkit-text-stroke: 2px #22303a; line-height: 1.1; }
+  .bnr .small { font-size: 14px; font-weight: bold; margin-top: 6px; }
+  /* ===== ハウススタイル ここまで ===== */
+
+  .resultOverlay {
+    position: fixed; inset: 0; z-index: 96; display: none; align-items: center; justify-content: center;
+    background: rgba(20,15,8,0.6); padding: 20px;
+  }
+  .resultOverlay.show { display: flex; }
+  .resultCard {
+    background: #fff6e4; border: 6px solid #22303a; border-radius: 24px;
+    padding: 28px 26px 24px; text-align: center; max-width: 360px; width: 100%;
+    box-shadow: 12px 12px 0 rgba(20,10,0,0.35);
+    animation: burstIn 0.4s cubic-bezier(.2,1.8,.4,1);
+  }
+  .resultHead { font-size: 22px; font-weight: bold; color: #ff5a3c; -webkit-text-stroke: 1px #22303a; }
+  .resultScoreLabel { font-size: 11px; opacity: 0.6; font-weight: bold; margin-top: 14px; letter-spacing: 0.1em; }
+  .resultScore { font-size: 54px; font-weight: bold; color: #22303a; line-height: 1.1; }
+  .resultMsg { font-size: 13px; margin: 10px 0 18px; line-height: 1.7; }
+  .bigBtn { width: 100%; padding: 14px; font-size: 16px; }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <h1>きんぎょすくい</h1>
+  <p class="sub">アミを ゆびで うごかして きんぎょの うえで はなそう</p>
+
+  <div class="hud">
+    <div class="hud-item score"><span class="hud-label">とくてん</span><span id="scoreVal">0</span></div>
+    <div class="hud-item durability">
+      <span class="hud-label">あみの じょうぶさ</span>
+      <div class="durabilityWrap"><div id="durabilityFill" class="durabilityFill"></div></div>
+    </div>
+    <button id="soundBtn" class="soundBtn" aria-label="おとの切り替え">🔊</button>
+  </div>
+
+  <div class="panel">
+    <div class="tank" id="tank">
+      <div class="awning"></div>
+      <div class="fishLayer" id="fishLayer"></div>
+      <div class="poi" id="poi">
+        <div class="poiStick"></div>
+        <div class="poiRing"></div>
+        <div class="poiPaper" id="poiPaper"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="fx"></div>
+<div id="flash"></div>
+<div id="toast"></div>
+<div id="banner"><div class="bnr"><div class="big" id="bnrBig"></div><div class="small" id="bnrSmall"></div></div></div>
+
+<div class="resultOverlay" id="resultOverlay">
+  <div class="resultCard">
+    <div class="resultHead" id="resultHead">あみが やぶれた！</div>
+    <div class="resultScoreLabel">とくてん</div>
+    <div class="resultScore" id="resultScoreVal">0</div>
+    <div class="resultMsg" id="resultMsg"></div>
+    <button class="btn bigBtn" id="retryBtn">もういちど あそぶ</button>
+  </div>
+</div>
+
+<script>
+/* ===== 演出エンジン(そのまま使う) ===== */
+const fx = document.getElementById('fx');
+const flash = document.getElementById('flash');
+const toast = document.getElementById('toast');
+const banner = document.getElementById('banner');
+const app = document.querySelector('.app');
+const PARTS = ['🐟','💧','✨','🏮','🎐'];
+
+function coinRain(n) {
+  for (let i = 0; i < n; i++) {
+    const c = document.createElement('div');
+    c.className = 'coin';
+    const r = Math.random();
+    c.textContent = r < 0.35 ? '🐟' : r < 0.55 ? '💧' : r < 0.75 ? '✨' : r < 0.9 ? '🏮' : '🎐';
+    c.style.left = (Math.random() * 100) + '%';
+    c.style.fontSize = (18 + Math.random() * 24) + 'px';
+    c.style.animationDelay = (Math.random() * 0.9) + 's';
+    c.style.animationDuration = (1.5 + Math.random() * 1.3) + 's';
+    fx.appendChild(c);
+    setTimeout(() => c.remove(), 4000);
+  }
+}
+function burst(n) {
+  for (let i = 0; i < n; i++) {
+    const s = document.createElement('div');
+    s.className = 'spark';
+    s.textContent = PARTS[Math.floor(Math.random() * PARTS.length)];
+    const fromLeft = i % 2 === 0;
+    const dir = fromLeft ? 1 : -1;
+    s.style.left = fromLeft ? '6%' : 'auto';
+    s.style.right = fromLeft ? 'auto' : '6%';
+    s.style.fontSize = (16 + Math.random() * 18) + 'px';
+    s.style.setProperty('--tx', (dir * (60 + Math.random() * 260)) + 'px');
+    s.style.setProperty('--ty', (-(220 + Math.random() * 320)) + 'px');
+    s.style.animationDelay = (Math.random() * 0.25) + 's';
+    fx.appendChild(s);
+    setTimeout(() => s.remove(), 1800);
+  }
+}
+function doFlash() { flash.classList.remove('go'); void flash.offsetWidth; flash.classList.add('go'); }
+function shake(el) { el.classList.remove('wiggle'); void el.offsetWidth; el.classList.add('wiggle'); setTimeout(() => el.classList.remove('wiggle'), 1000); }
+
+function miniCelebrate(text) {
+  coinRain(38); burst(16); shake(app);
+  toast.textContent = text;
+  toast.classList.remove('show'); void toast.offsetWidth; toast.classList.add('show');
+  setTimeout(() => toast.classList.remove('show'), 1400);
+}
+function celebrate(bigText, smallText) {
+  let wave = 0;
+  const waves = setInterval(() => {
+    doFlash(); coinRain(28); burst(12); shake(app);
+    wave++;
+    if (wave >= 4) clearInterval(waves);
+  }, 500);
+  document.getElementById('bnrBig').textContent = bigText;
+  document.getElementById('bnrSmall').textContent = smallText || '';
+  banner.classList.add('show');
+  setTimeout(() => banner.classList.remove('show'), 2200);
+}
+/* ===== ここまで ===== */
+
+/* ===== ゲーム本体 ===== */
+const TIERS = {
+  small: { key: 'small', spawnWeight: 0.5, catchP: 0.80, points: 1, dmgS: 7,  dmgF: 12, size: 34 },
+  mid:   { key: 'mid',   spawnWeight: 0.3, catchP: 0.55, points: 2, dmgS: 9,  dmgF: 16, size: 42 },
+  big:   { key: 'big',   spawnWeight: 0.2, catchP: 0.35, points: 4, dmgS: 14, dmgF: 22, size: 52 }
+};
+const TIER_LIST = [TIERS.small, TIERS.mid, TIERS.big];
+const MAX_FISH = 4;
+const DURABILITY_START = 100;
+const MINI_THRESHOLD = 9;
+const BIG_THRESHOLD = 12;
+const CATCH_RADIUS_PCT = 11; // % of tank width
+
+const tank = document.getElementById('tank');
+const fishLayer = document.getElementById('fishLayer');
+const poiEl = document.getElementById('poi');
+const poiPaper = document.getElementById('poiPaper');
+const durabilityFill = document.getElementById('durabilityFill');
+const scoreVal = document.getElementById('scoreVal');
+const resultOverlay = document.getElementById('resultOverlay');
+const resultHead = document.getElementById('resultHead');
+const resultScoreVal = document.getElementById('resultScoreVal');
+const resultMsg = document.getElementById('resultMsg');
+const retryBtn = document.getElementById('retryBtn');
+const soundBtn = document.getElementById('soundBtn');
+
+let fishes = [];
+let fishSeq = 0;
+let score = 0;
+let durability = DURABILITY_START;
+let miniFired = false;
+let bigFired = false;
+let gameOver = false;
+let dragging = false;
+let poiPos = { x: 50, y: 50 };
+let lastAttemptAt = 0;
+let rafId = null;
+let lastT = performance.now();
+
+function pickTier() {
+  const r = Math.random();
+  let cum = 0;
+  for (const t of TIER_LIST) {
+    cum += t.spawnWeight;
+    if (r <= cum) return t;
+  }
+  return TIER_LIST[TIER_LIST.length - 1];
+}
+
+function fishSvg(tier) {
+  if (tier.key === 'small') {
+    return `<svg viewBox="0 0 40 24"><ellipse cx="20" cy="12" rx="13" ry="9" fill="#ff6b45"/><path d="M7 12 L-2 4 L-2 20 Z" fill="#e2402b"/><circle cx="27" cy="9" r="1.8" fill="#22303a"/><path d="M14 5 q6 -3 12 0" stroke="#ffb28a" stroke-width="2" fill="none" opacity=".7"/></svg>`;
+  }
+  if (tier.key === 'mid') {
+    return `<svg viewBox="0 0 40 24"><ellipse cx="20" cy="13" rx="14" ry="10.5" fill="#e2402b"/><path d="M8 13 L-3 3 L-1 13 L-3 23 Z" fill="#a82a1f"/><circle cx="28" cy="9" r="3" fill="#fff"/><circle cx="28.6" cy="9" r="1.6" fill="#22303a"/><circle cx="12" cy="9" r="3" fill="#fff"/><circle cx="12.6" cy="9" r="1.6" fill="#22303a"/></svg>`;
+  }
+  return `<svg viewBox="0 0 40 24"><ellipse cx="20" cy="13" rx="15" ry="10" fill="#fff8ec" stroke="#e2402b" stroke-width="1.5"/><path d="M16 6 q6 4 0 8 q8 -2 4 6" fill="#ff5a3c" opacity=".85"/><path d="M6 13 L-6 1 L-3 13 L-6 25 L6 13" fill="#ff9c8a" opacity=".9"/><circle cx="29" cy="9" r="1.8" fill="#22303a"/></svg>`;
+}
+
+function spawnFish() {
+  const tier = pickTier();
+  const el = document.createElement('div');
+  el.className = 'fish';
+  el.style.width = tier.size + 'px';
+  el.style.height = (tier.size * 0.6) + 'px';
+  el.innerHTML = fishSvg(tier);
+  fishLayer.appendChild(el);
+  const speed = tier.key === 'small' ? 22 : tier.key === 'mid' ? 15 : 10; // %/sec horizontal
+  const fish = {
+    id: fishSeq++,
+    tier,
+    el,
+    x: 15 + Math.random() * 70,
+    y: 30 + Math.random() * 55,
+    baseY: 0,
+    dir: Math.random() < 0.5 ? 1 : -1,
+    speed,
+    phase: Math.random() * Math.PI * 2,
+    freq: 0.8 + Math.random() * 0.6,
+    amp: 4 + Math.random() * 4,
+    state: 'alive'
+  };
+  fish.baseY = fish.y;
+  el.style.left = fish.x + '%';
+  el.style.top = fish.y + '%';
+  el.style.transform = `translate(-50%,-50%) scaleX(${fish.dir})`;
+  fishes.push(fish);
+  return fish;
+}
+
+function removeFishEl(fish, delayMs) {
+  setTimeout(() => { if (fish.el && fish.el.parentNode) fish.el.remove(); }, delayMs);
+}
+
+function fillTank() {
+  while (fishes.filter(f => f.state === 'alive').length < MAX_FISH) spawnFish();
+}
+
+function updateFish(dt) {
+  for (const f of fishes) {
+    if (f.state !== 'alive') continue;
+    f.x += f.dir * f.speed * dt;
+    if (f.x < 10) { f.x = 10; f.dir = 1; }
+    if (f.x > 90) { f.x = 90; f.dir = -1; }
+    f.phase += f.freq * dt;
+    f.y = f.baseY + Math.sin(f.phase) * f.amp;
+    if (f.y < 18) f.y = 18;
+    if (f.y > 88) f.y = 88;
+    f.el.style.left = f.x + '%';
+    f.el.style.top = f.y + '%';
+    f.el.style.transform = `translate(-50%,-50%) scaleX(${f.dir})`;
+  }
+}
+
+function loop(t) {
+  const dt = Math.min(0.05, (t - lastT) / 1000);
+  lastT = t;
+  updateFish(dt);
+  rafId = requestAnimationFrame(loop);
+}
+
+/* ---- ポイ操作 ---- */
+function tankRect() { return tank.getBoundingClientRect(); }
+
+function setPoiFromEvent(e) {
+  const r = tankRect();
+  const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+  const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+  let x = ((clientX - r.left) / r.width) * 100;
+  let y = ((clientY - r.top) / r.height) * 100;
+  x = Math.max(4, Math.min(96, x));
+  y = Math.max(8, Math.min(96, y));
+  poiPos.x = x; poiPos.y = y;
+  poiEl.style.left = x + '%';
+  poiEl.style.top = y + '%';
+}
+
+function onPointerDown(e) {
+  if (gameOver) return;
+  ensureAudio();
+  dragging = true;
+  poiEl.classList.add('active');
+  setPoiFromEvent(e);
+  e.preventDefault();
+}
+function onPointerMove(e) {
+  if (!dragging || gameOver) return;
+  setPoiFromEvent(e);
+  e.preventDefault();
+}
+function onPointerUp(e) {
+  if (!dragging) return;
+  dragging = false;
+  attemptScoop();
+}
+
+tank.addEventListener('mousedown', onPointerDown);
+window.addEventListener('mousemove', onPointerMove);
+window.addEventListener('mouseup', onPointerUp);
+tank.addEventListener('touchstart', onPointerDown, { passive: false });
+window.addEventListener('touchmove', onPointerMove, { passive: false });
+window.addEventListener('touchend', onPointerUp);
+
+function findTargetFish() {
+  let nearest = null, nearestD = Infinity;
+  for (const f of fishes) {
+    if (f.state !== 'alive') continue;
+    const d = Math.hypot(f.x - poiPos.x, f.y - poiPos.y);
+    if (d < CATCH_RADIUS_PCT && d < nearestD) { nearest = f; nearestD = d; }
+  }
+  return nearest;
+}
+
+function attemptScoop() {
+  if (gameOver) return;
+  const now = performance.now();
+  if (now - lastAttemptAt < 180) return;
+  const fish = findTargetFish();
+  if (!fish) return;
+  lastAttemptAt = now;
+  const tier = fish.tier;
+  const success = Math.random() < tier.catchP;
+  if (success) {
+    score += tier.points;
+    durability -= tier.dmgS;
+    fish.state = 'caught';
+    fish.el.classList.add('caught');
+    removeFishEl(fish, 320);
+    playScoopSuccess(tier);
+  } else {
+    durability -= tier.dmgF;
+    fish.state = 'fled';
+    const away = fish.x < 50 ? -12 : 112;
+    fish.el.style.left = away + '%';
+    fish.el.classList.add('fleeing');
+    removeFishEl(fish, 380);
+    playScoopFail();
+  }
+  fishes = fishes.filter(f => f.state === 'alive' || (f.state !== 'caught' && f.state !== 'fled'));
+  fillTank();
+  scoreVal.textContent = score;
+  updateDurabilityVisual();
+  checkThresholds();
+  if (durability <= 0) endGame();
+}
+
+function updateDurabilityVisual() {
+  const pct = Math.max(0, durability);
+  durabilityFill.style.width = pct + '%';
+  if (pct > 55) {
+    durabilityFill.style.background = 'linear-gradient(90deg, #ffd36e, #ff9c3c)';
+    poiPaper.classList.remove('wet', 'torn');
+    poiPaper.style.opacity = 1;
+  } else if (pct > 25) {
+    durabilityFill.style.background = 'linear-gradient(90deg, #ff9c3c, #ff5a3c)';
+    poiPaper.classList.add('wet');
+    poiPaper.classList.remove('torn');
+    poiPaper.style.opacity = 0.8;
+  } else {
+    durabilityFill.style.background = 'linear-gradient(90deg, #ff5a3c, #c62a1f)';
+    poiPaper.classList.add('wet', 'torn');
+    poiPaper.style.opacity = 0.55;
+  }
+}
+
+function checkThresholds() {
+  if (!miniFired && score >= MINI_THRESHOLD) {
+    miniFired = true;
+    miniCelebrate('たくさん すくえた！');
+    playMiniJingle();
+  }
+  if (!bigFired && score >= BIG_THRESHOLD) {
+    bigFired = true;
+    celebrate('ごうか 大漁！', score + 'てん とった！');
+    playBigJingle();
+  }
+}
+
+function endGame() {
+  gameOver = true;
+  poiEl.classList.remove('active');
+  playPoiBreak();
+  setTimeout(() => {
+    if (score >= BIG_THRESHOLD) {
+      resultHead.textContent = 'ごうか大漁！お見事！';
+      resultMsg.textContent = 'アミが やぶれるまで よく すくった。つぎは もっと大物ねらいも 楽しめる。';
+    } else if (score >= MINI_THRESHOLD) {
+      resultHead.textContent = 'あみが やぶれた！';
+      resultMsg.textContent = 'もう少しで 大漁だった。大物は アミが すぐ いたむので ねらいすぎ注意。';
+    } else {
+      resultHead.textContent = 'あみが やぶれた…';
+      resultMsg.textContent = '小さい きんぎょから ねらうと アミが長もちするよ。';
+    }
+    resultScoreVal.textContent = score;
+    resultOverlay.classList.add('show');
+  }, 500);
+}
+
+function resetGame() {
+  fishes.forEach(f => { if (f.el && f.el.parentNode) f.el.remove(); });
+  fishes = [];
+  score = 0;
+  durability = DURABILITY_START;
+  miniFired = false;
+  bigFired = false;
+  gameOver = false;
+  scoreVal.textContent = 0;
+  updateDurabilityVisual();
+  resultOverlay.classList.remove('show');
+  fillTank();
+}
+
+retryBtn.addEventListener('click', () => { ensureAudio(); resetGame(); });
+
+/* ---- 音 ---- */
+let audioCtx = null, bgmGain = null, sfxGain = null, bgmTimer = null, muted = false;
+const BGM_NOTES = [392, 440, 494, 587, 659, 587, 494, 440];
+let bgmIdx = 0;
+
+function ensureAudio() {
+  if (audioCtx) { if (audioCtx.state === 'suspended') audioCtx.resume(); return; }
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  bgmGain = audioCtx.createGain(); bgmGain.gain.value = 0.22; bgmGain.connect(audioCtx.destination);
+  sfxGain = audioCtx.createGain(); sfxGain.gain.value = 0.85; sfxGain.connect(audioCtx.destination);
+  startBgm();
+}
+
+function playNote(freq, dur, type, dest, vol, delay) {
+  if (!audioCtx || muted) return;
+  const o = audioCtx.createOscillator();
+  o.type = type; o.frequency.value = freq;
+  const g = audioCtx.createGain();
+  const startAt = audioCtx.currentTime + (delay || 0);
+  g.gain.setValueAtTime(0, startAt);
+  g.gain.linearRampToValueAtTime(vol, startAt + 0.01);
+  g.gain.linearRampToValueAtTime(0, startAt + dur);
+  o.connect(g); g.connect(dest);
+  o.start(startAt); o.stop(startAt + dur + 0.02);
+}
+
+function startBgm() {
+  stopBgmTimer();
+  bgmTimer = setInterval(() => {
+    if (muted || !audioCtx) return;
+    playNote(BGM_NOTES[bgmIdx % BGM_NOTES.length], 0.28, 'triangle', bgmGain, 0.5);
+    bgmIdx++;
+  }, 430);
+}
+function stopBgmTimer() { if (bgmTimer) { clearInterval(bgmTimer); bgmTimer = null; } }
+
+function playScoopSuccess(tier) {
+  if (!audioCtx || muted) return;
+  const base = tier.key === 'big' ? 520 : tier.key === 'mid' ? 660 : 800;
+  playNote(base, 0.09, 'triangle', sfxGain, 0.6, 0);
+  playNote(base * 1.5, 0.12, 'triangle', sfxGain, 0.5, 0.07);
+}
+function playScoopFail() {
+  if (!audioCtx || muted) return;
+  playNote(140, 0.16, 'sine', sfxGain, 0.55, 0);
+  playNote(95, 0.18, 'sine', sfxGain, 0.4, 0.05);
+}
+function playMiniJingle() {
+  if (!audioCtx || muted) return;
+  [660, 784, 988].forEach((f, i) => playNote(f, 0.14, 'triangle', sfxGain, 0.55, i * 0.09));
+}
+function playBigJingle() {
+  if (!audioCtx || muted) return;
+  [523, 659, 784, 988, 1175].forEach((f, i) => playNote(f, 0.16, 'triangle', sfxGain, 0.6, i * 0.09));
+}
+function playPoiBreak() {
+  if (!audioCtx || muted) return;
+  [300, 210, 150, 90].forEach((f, i) => playNote(f, 0.12, 'square', sfxGain, 0.35, i * 0.06));
+}
+
+soundBtn.addEventListener('click', () => {
+  ensureAudio();
+  muted = !muted;
+  soundBtn.textContent = muted ? '🔇' : '🔊';
+  if (muted) { stopBgmTimer(); if (audioCtx) audioCtx.suspend(); }
+  else { if (audioCtx) { audioCtx.resume(); startBgm(); } }
+});
+
+function stopAllAudio() {
+  stopBgmTimer();
+  if (audioCtx && audioCtx.state === 'running') audioCtx.suspend();
+}
+document.addEventListener('visibilitychange', () => { if (document.hidden) stopAllAudio(); else if (audioCtx && !muted) { audioCtx.resume(); startBgm(); } });
+window.addEventListener('pagehide', stopAllAudio);
+window.addEventListener('blur', stopAllAudio);
+
+/* ---- 起動 ---- */
+updateDurabilityVisual();
+fillTank();
+rafId = requestAnimationFrame(loop);
+</script>
+</body>
+</html>
