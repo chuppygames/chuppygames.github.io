@@ -1,0 +1,1005 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>おばけよけ コインひろい｜Chuppy Games Day 015</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none; }
+
+  :root{
+    --bg1: #0d0620;
+    --bg2: #1b0f3a;
+    --bg3: #241454;
+    --text: #f0e9ff;
+    --dim: #b7a8e6;
+    --gold: #ffd23c;
+    --danger: #ff5f7e;
+  }
+
+  html, body { height: 100%; overflow: hidden; }
+  body{
+    font-family: "Hiragino Maru Gothic ProN", "Yu Gothic", system-ui, sans-serif;
+    background: var(--bg1);
+    color: var(--text);
+    position: relative;
+    min-height: 100vh;
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  #stage{
+    position: relative;
+    width: 100%; max-width: 460px; height: 100vh; max-height: 900px;
+    overflow: hidden;
+    background: linear-gradient(180deg, var(--bg1) 0%, var(--bg2) 55%, var(--bg3) 100%);
+  }
+
+  canvas#c{ position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; }
+
+  /* ---- HUD ---- */
+  #hud{
+    position: absolute; top: 0; left: 0; right: 0; z-index: 5;
+    display: flex; justify-content: space-between; align-items: flex-start;
+    padding: 14px 14px 0;
+    pointer-events: none;
+  }
+  #hearts{ display:flex; gap: 4px; }
+  #hearts span{ font-size: 18px; filter: drop-shadow(0 0 4px rgba(255,95,126,.5)); }
+  #hearts span.empty{ opacity: .25; filter:none; }
+
+  .pill{
+    background: rgba(13,6,32,0.6);
+    border: 1px solid rgba(240,233,255,0.22);
+    border-radius: 999px;
+    padding: 6px 14px;
+    backdrop-filter: blur(6px);
+    font-size: 12px; letter-spacing: 0.06em; color: var(--dim);
+    display: flex; align-items: center; gap: 6px;
+  }
+  .pill b{ font-size: 16px; color: var(--text); font-variant-numeric: tabular-nums; }
+  #coinPill b{ color: var(--gold); }
+
+  #topRight{ display:flex; flex-direction:column; align-items:flex-end; gap:8px; }
+
+  #timeWrap{
+    position:absolute; top:14px; left:50%; transform:translateX(-50%);
+    width: 46%; max-width: 220px; height: 8px; border-radius: 999px;
+    background: rgba(240,233,255,0.15); overflow:hidden; pointer-events:none;
+  }
+  #timeBar{ height:100%; width:100%; background: linear-gradient(90deg,#ffd23c,#ff9c3c); border-radius:999px; transition: width .12s linear; }
+
+  #soundBtn{
+    pointer-events: auto;
+    background: rgba(13,6,32,0.6);
+    border: 1px solid rgba(240,233,255,0.22);
+    border-radius: 999px;
+    width: 34px; height: 34px;
+    font-size: 15px; color: var(--text);
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  /* ---- overlays ---- */
+  .overlay{
+    position: absolute; inset: 0; z-index: 20;
+    display: flex; align-items: center; justify-content: center;
+    padding: 22px;
+    background: radial-gradient(ellipse at 50% 30%, rgba(36,20,84,0.55) 0%, rgba(10,5,25,0.93) 70%);
+    text-align: center;
+  }
+  .card{
+    width: 100%; max-width: 336px;
+    background: linear-gradient(180deg, rgba(27,15,58,0.94) 0%, rgba(13,6,32,0.97) 100%);
+    border: 1px solid rgba(240,233,255,0.2);
+    border-radius: 24px;
+    padding: 30px 24px 26px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.55);
+  }
+  .card h1{
+    font-size: 25px; letter-spacing: 0.04em; line-height: 1.45; margin-bottom: 12px;
+    color: var(--text);
+  }
+  .card p.sub{ font-size: 12.5px; color: var(--dim); line-height: 1.9; margin-bottom: 20px; }
+  .legend{ display:flex; justify-content:center; gap:20px; margin-bottom:22px; }
+  .legend div{ display:flex; flex-direction:column; align-items:center; gap:6px; font-size:10.5px; color: var(--dim); }
+  .legend .ic{ font-size: 24px; }
+
+  .startBtn{
+    display: block; width: 100%;
+    background: linear-gradient(180deg, #ffe27a, #ffb23c);
+    color: #2a1500; font-weight: 700; font-size: 16px; letter-spacing: 0.05em;
+    border: none; border-radius: 999px; padding: 15px 0;
+    box-shadow: 0 8px 22px rgba(255,178,60,0.35);
+  }
+  .startBtn:active{ transform: scale(0.97); }
+
+  /* 表示/非表示は .hidden だけで切り替える。
+     ここで #result{display:none} と書くと ID の方が強く、
+     .hidden を外しても結果画面が出てこなくなる。 */
+  #result .big{
+    font-size: 25px; font-weight: 800; color: var(--text);
+    line-height: 1.3; margin-bottom: 10px;
+  }
+  #result .score{
+    font-size: 52px; font-weight: 800; color: var(--gold);
+    text-shadow: 0 0 24px rgba(255,210,60,0.55);
+    line-height: 1; margin: 2px 0 2px;
+  }
+  #result .scoreLabel{ font-size: 11px; color: var(--dim); letter-spacing: 0.12em; margin-bottom: 16px; }
+  #result .msg{ font-size: 13px; color: var(--text); line-height: 1.9; margin-bottom: 8px; }
+  #result .hint{ font-size: 11.5px; color: var(--dim); margin-bottom: 18px; line-height:1.8; }
+
+  /* 何回目か / さいこう記録 */
+  #record{
+    display:flex; justify-content:center; gap:10px; margin-bottom:18px;
+  }
+  #record div{
+    flex:1; max-width:120px;
+    background: rgba(240,233,255,0.07);
+    border: 1px solid rgba(240,233,255,0.18);
+    border-radius: 14px; padding: 9px 4px 8px;
+  }
+  #record i{
+    display:block; font-style:normal; font-size:9.5px; letter-spacing:0.14em;
+    color: var(--dim); margin-bottom:3px;
+  }
+  #record b{ font-size:20px; font-weight:800; color: var(--text); }
+  #record .bestBox b{ color: var(--gold); }
+  #record .bestBox.isNew{
+    border-color: rgba(255,210,60,0.7);
+    box-shadow: 0 0 18px rgba(255,210,60,0.35);
+  }
+  #newBest{
+    font-size: 11.5px; font-weight:800; color: var(--gold);
+    letter-spacing:0.06em; margin-bottom: 12px;
+  }
+
+  #flash{
+    position: absolute; inset: 0; z-index: 12; pointer-events: none;
+    background: rgba(255,210,60,0.0);
+  }
+  #dangerFlash{
+    position: absolute; inset: 0; z-index: 12; pointer-events: none;
+    background: rgba(255,95,126,0.0);
+  }
+
+  #banner{
+    position: absolute; left: 50%; top: 40%; transform: translate(-50%,-50%) scale(0.8);
+    z-index: 15; pointer-events: none;
+    background: linear-gradient(180deg, rgba(255,210,60,0.18), rgba(255,210,60,0.03));
+    border: 1px solid rgba(255,210,60,0.5);
+    border-radius: 18px;
+    padding: 16px 28px;
+    text-align: center;
+    opacity: 0; transition: opacity 0.35s ease, transform 0.35s ease;
+  }
+  #banner.show{ opacity: 1; transform: translate(-50%,-50%) scale(1); }
+  #banner .b1{ font-size: 19px; font-weight: 800; color: var(--gold); letter-spacing: 0.06em; text-shadow: 0 0 20px rgba(255,210,60,0.7); }
+  #banner .b2{ font-size: 11px; color: var(--text); margin-top: 4px; letter-spacing: 0.05em; }
+
+  #toast{
+    position: absolute; left: 50%; top: 20%; transform: translateX(-50%);
+    z-index: 16; display: none;
+    background: rgba(255,210,60,0.92); color: #2a1500;
+    border-radius: 999px;
+    padding: 8px 20px; font-size: 15px; font-weight: 800;
+    box-shadow: 0 6px 20px rgba(0,0,0,.4);
+  }
+  #toast.show{ display:block; animation: toastIn 1.3s ease-out forwards; }
+  @keyframes toastIn{
+    0%{ transform: translateX(-50%) scale(.4); opacity:0; }
+    18%{ transform: translateX(-50%) scale(1.08); opacity:1; }
+    30%,80%{ transform: translateX(-50%) scale(1); opacity:1; }
+    100%{ transform: translateX(-50%) translateY(-20px) scale(.92); opacity:0; }
+  }
+
+  .hidden{ display:none !important; }
+
+  @keyframes shakeStage{
+    0%,100%{ transform: translate(0,0); }
+    20%{ transform: translate(-6px,3px); }
+    40%{ transform: translate(5px,-4px); }
+    60%{ transform: translate(-4px,-2px); }
+    80%{ transform: translate(4px,3px); }
+  }
+  .shaking{ animation: shakeStage 0.32s ease; }
+
+  #fx{ position:absolute; inset:0; z-index: 14; overflow:hidden; pointer-events:none; }
+  .pcoin{ position:absolute; top:-40px; animation: pfall linear forwards; }
+  @keyframes pfall{ to{ transform: translateY(120vh) rotate(680deg); } }
+  .spark{ position:absolute; bottom:-10px; animation: shoot 1.2s cubic-bezier(.12,.65,.35,1) forwards; }
+  @keyframes shoot{
+    0%{ transform: translate(0,0) rotate(0deg); opacity:1; }
+    70%{ opacity:1; }
+    100%{ transform: translate(var(--tx), var(--ty)) rotate(600deg); opacity:0; }
+  }
+</style>
+</head>
+<body>
+
+<div id="stage">
+  <canvas id="c"></canvas>
+
+  <div id="hud">
+    <div>
+      <div id="hearts"></div>
+      <div class="pill" id="coinPill" style="margin-top:8px;">🪙<b id="coinVal">0</b></div>
+    </div>
+    <div id="topRight">
+      <button id="soundBtn">🔊</button>
+    </div>
+  </div>
+  <div id="timeWrap"><div id="timeBar"></div></div>
+
+  <div id="flash"></div>
+  <div id="dangerFlash"></div>
+  <div id="banner"><div class="b1" id="bnrBig"></div><div class="b2" id="bnrSmall"></div></div>
+  <div id="toast"></div>
+  <div id="fx"></div>
+
+  <div class="overlay" id="startOverlay">
+    <div class="card">
+      <h1>おばけよけ<br>コインひろい</h1>
+      <p class="sub">ゆびで おして ドラッグ。<br>よるの もりで おばけを よけながら、<br>光る コインを 26びょう かき集めよう。</p>
+      <div class="legend">
+        <div><span class="ic">🕯️</span>じぶん</div>
+        <div><span class="ic">🪙</span>とる</div>
+        <div><span class="ic">👻</span>さける</div>
+      </div>
+      <button class="startBtn" id="startBtn">はじめる ▸</button>
+    </div>
+  </div>
+
+  <div class="overlay hidden" id="result">
+    <div class="card">
+      <div class="big" id="resultBig">タイムアップ！</div>
+      <div class="score" id="resultScore">0</div>
+      <div class="scoreLabel">まい あつめた</div>
+      <div id="newBest" class="hidden">⭐️ さいこう記録こうしん！</div>
+      <div id="record">
+        <div><i>かいすう</i><b id="playCount">1</b></div>
+        <div class="bestBox" id="bestBox"><i>さいこう</i><b id="bestScore">0</b></div>
+      </div>
+      <div class="msg" id="resultMsg"></div>
+      <div class="hint" id="resultHint"></div>
+      <button class="startBtn" id="retryBtn">もう一度あそぶ ▸</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  var stage = document.getElementById('stage');
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+  var heartsEl = document.getElementById('hearts');
+  var coinValEl = document.getElementById('coinVal');
+  var timeBarEl = document.getElementById('timeBar');
+  var startOverlay = document.getElementById('startOverlay');
+  var startBtn = document.getElementById('startBtn');
+  var retryBtn = document.getElementById('retryBtn');
+  var resultEl = document.getElementById('result');
+  var resultBig = document.getElementById('resultBig');
+  var resultScore = document.getElementById('resultScore');
+  var resultMsg = document.getElementById('resultMsg');
+  var resultHint = document.getElementById('resultHint');
+  var playCountEl = document.getElementById('playCount');
+  var bestScoreEl = document.getElementById('bestScore');
+  var bestBoxEl = document.getElementById('bestBox');
+  var newBestEl = document.getElementById('newBest');
+  var soundBtn = document.getElementById('soundBtn');
+  var flashEl = document.getElementById('flash');
+  var dangerFlashEl = document.getElementById('dangerFlash');
+  var bannerEl = document.getElementById('banner');
+  var bnrBig = document.getElementById('bnrBig');
+  var bnrSmall = document.getElementById('bnrSmall');
+  var toastEl = document.getElementById('toast');
+  var fxEl = document.getElementById('fx');
+
+  var W = 0, H = 0, DPR = 1;
+  function resize(){
+    var r = stage.getBoundingClientRect();
+    W = r.width; H = r.height;
+    DPR = Math.min(window.devicePixelRatio || 1, 2.5);
+    canvas.width = Math.round(W * DPR);
+    canvas.height = Math.round(H * DPR);
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  /* ================= 演出エンジン ================= */
+  var PARTS = ['🪙','🪙','🪙','✨','⭐️','💜'];
+
+  function pcoinRain(n){
+    for (var i = 0; i < n; i++){
+      var c = document.createElement('div');
+      c.className = 'pcoin';
+      var r = Math.random();
+      c.textContent = r < 0.16 ? '⭐️' : r < 0.28 ? '✨' : '🪙';
+      c.style.left = (Math.random() * 100) + '%';
+      c.style.fontSize = (18 + Math.random() * 22) + 'px';
+      c.style.animationDelay = (Math.random() * 0.8) + 's';
+      c.style.animationDuration = (1.4 + Math.random() * 1.2) + 's';
+      fxEl.appendChild(c);
+      (function(el){ setTimeout(function(){ el.remove(); }, 3800); })(c);
+    }
+  }
+  function burst(n){
+    for (var i = 0; i < n; i++){
+      var s = document.createElement('div');
+      s.className = 'spark';
+      s.textContent = PARTS[Math.floor(Math.random() * PARTS.length)];
+      var fromLeft = i % 2 === 0;
+      var dir = fromLeft ? 1 : -1;
+      s.style.left = fromLeft ? '4%' : 'auto';
+      s.style.right = fromLeft ? 'auto' : '4%';
+      s.style.fontSize = (16 + Math.random() * 18) + 'px';
+      s.style.setProperty('--tx', (dir * (50 + Math.random() * 200)) + 'px');
+      s.style.setProperty('--ty', (-(180 + Math.random() * 260)) + 'px');
+      s.style.animationDelay = (Math.random() * 0.22) + 's';
+      fxEl.appendChild(s);
+      (function(el){ setTimeout(function(){ el.remove(); }, 1700); })(s);
+    }
+  }
+  function doFlash(el, rgb, peak){
+    el.style.transition = 'none';
+    el.style.background = 'rgba(' + rgb + ',' + peak + ')';
+    requestAnimationFrame(function(){
+      el.style.transition = 'background 0.5s ease-out';
+      el.style.background = 'rgba(' + rgb + ',0)';
+    });
+  }
+  function shake(){
+    stage.classList.remove('shaking'); void stage.offsetWidth; stage.classList.add('shaking');
+    setTimeout(function(){ stage.classList.remove('shaking'); }, 400);
+  }
+  function showToast(text){
+    toastEl.textContent = text;
+    toastEl.classList.remove('show'); void toastEl.offsetWidth; toastEl.classList.add('show');
+    setTimeout(function(){ toastEl.classList.remove('show'); }, 1400);
+  }
+  function miniCelebrate(text){
+    pcoinRain(38); burst(18); shake();
+    doFlash(flashEl, '255,210,60', 0.28);
+    showToast(text);
+    sfxLevelUp();
+  }
+  // 大演出の残り波・バナーは次のラウンドに持ち越さないよう掴んでおく
+  var celebrateTimer = null, bannerTimer = null;
+  function stopCelebrate(){
+    if (celebrateTimer){ clearInterval(celebrateTimer); celebrateTimer = null; }
+    if (bannerTimer){ clearTimeout(bannerTimer); bannerTimer = null; }
+    bannerEl.classList.remove('show');
+    toastEl.classList.remove('show');
+    fxEl.innerHTML = '';
+  }
+  function celebrate(bigText, smallText){
+    stopCelebrate();
+    var wave = 0;
+    celebrateTimer = setInterval(function(){
+      wave++;
+      pcoinRain(22); burst(10); shake();
+      doFlash(flashEl, '255,210,60', wave % 2 === 1 ? 0.4 : 0.22);
+      if (wave >= 4){ clearInterval(celebrateTimer); celebrateTimer = null; }
+    }, 500);
+    pcoinRain(22); burst(10); shake();
+    doFlash(flashEl, '255,210,60', 0.4);
+    bnrBig.textContent = bigText;
+    bnrSmall.textContent = smallText || '';
+    bannerEl.classList.add('show');
+    bannerTimer = setTimeout(function(){ bannerEl.classList.remove('show'); bannerTimer = null; }, 2200);
+  }
+  function dangerPulse(){
+    doFlash(dangerFlashEl, '255,95,126', 0.42);
+    shake();
+    sfxHit();
+  }
+
+  /* ================= オーディオ ================= */
+  var actx = null, bgmGain = null, sfxGain = null, soundOn = true, bgmStarted = false;
+  var noiseBuf = null;
+
+  function ensureAudio(){
+    if (actx) return;
+    try{
+      actx = new (window.AudioContext || window.webkitAudioContext)();
+      bgmGain = actx.createGain(); bgmGain.gain.value = 0.001; bgmGain.connect(actx.destination);
+      sfxGain = actx.createGain(); sfxGain.gain.value = 0.7; sfxGain.connect(actx.destination);
+      // ハイハット/クラップ用のノイズ(音声ファイルは使わず、その場で作る)
+      noiseBuf = actx.createBuffer(1, Math.floor(actx.sampleRate * 0.4), actx.sampleRate);
+      var nd = noiseBuf.getChannelData(0);
+      for (var i = 0; i < nd.length; i++) nd[i] = Math.random() * 2 - 1;
+    }catch(e){ actx = null; }
+  }
+  function resumeAudioIfNeeded(){
+    if (actx && actx.state === 'suspended') actx.resume();
+  }
+
+  /* ---- ホラーポップ BGM ----
+     Am - F - C - E の4小節ループ。E に G#(導音)が入るのがホラーの効き所。
+     四つ打ちキック+バックビートで踊れるポップさを担保しつつ、
+     オルゴール風アルペジオと低いうなりドローンで不穏さを出す。       */
+  function mtof(m){ return 440 * Math.pow(2, (m - 69) / 12); }
+
+  var BARS = [
+    { bass: 45, tones: [57, 60, 64] }, // Am
+    { bass: 41, tones: [53, 57, 60] }, // F
+    { bass: 48, tones: [52, 55, 60] }, // C
+    { bass: 40, tones: [56, 59, 64] }  // E ← G#
+  ];
+  var BASS_STEPS = [0, 3, 6, 8, 11, 14];
+  var LEAD = [
+    [[0,69],[3,72],[6,71],[10,69]],
+    [[0,65],[3,69],[6,67],[10,65]],
+    [[0,67],[3,72],[6,71],[10,67]],
+    [[0,68],[3,71],[6,68],[10,64],[14,69],[15,70]]
+  ];
+  var KICK = [0,4,8,12], CLAP = [4,12], HAT8 = [0,2,4,6,8,10,12,14];
+  var MIX = { drone:0.055, bass:0.16, arp:0.05, lead:0.10, kick:0.30, clap:0.11, hat:0.035, bell:0.045 };
+
+  var bpm = 128, musicIntense = false;
+  var nextStepTime = 0, curStep = 0, schedTimer = null, droneNodes = [];
+  var LOOKAHEAD_MS = 25, SCHEDULE_AHEAD = 0.15;
+  function stepDur(){ return 60 / bpm / 4; }
+
+  function tone(type, freq, t, dur, vol, dest, detune){
+    var o = actx.createOscillator();
+    o.type = type;
+    o.frequency.setValueAtTime(freq, t);
+    if (detune) o.detune.setValueAtTime(detune, t);
+    var g = actx.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(vol, t + 0.012);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g); g.connect(dest || bgmGain);
+    o.start(t); o.stop(t + dur + 0.03);
+  }
+  function noise(t, dur, vol, freq, q, type){
+    var s = actx.createBufferSource(); s.buffer = noiseBuf;
+    var f = actx.createBiquadFilter();
+    f.type = type || 'highpass'; f.frequency.value = freq; f.Q.value = q || 1;
+    var g = actx.createGain();
+    g.gain.setValueAtTime(vol, t);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    s.connect(f); f.connect(g); g.connect(bgmGain);
+    s.start(t); s.stop(t + dur + 0.02);
+  }
+
+  function scheduleStep(step, t){
+    var bar = Math.floor(step / 16), sub = step % 16;
+    var chord = BARS[bar];
+
+    // キック 78Hz
+    if (KICK.indexOf(sub) >= 0){
+      var k = actx.createOscillator(); k.type = 'sine';
+      k.frequency.setValueAtTime(150, t);
+      k.frequency.exponentialRampToValueAtTime(78, t + 0.06);
+      var kg = actx.createGain();
+      kg.gain.setValueAtTime(MIX.kick, t);
+      kg.gain.exponentialRampToValueAtTime(0.0001, t + 0.20);
+      k.connect(kg); kg.connect(bgmGain);
+      k.start(t); k.stop(t + 0.24);
+    }
+    // クラップ(バックビート)
+    if (CLAP.indexOf(sub) >= 0) noise(t, 0.13, MIX.clap, 1400, 0.9, 'bandpass');
+    // ハイハット 7400Hz。レベルアップ後は16分に細かくなる
+    if (musicIntense || HAT8.indexOf(sub) >= 0){
+      var accent = (sub % 4 === 0) ? 1.5 : 1;
+      noise(t, 0.035, MIX.hat * accent, 7400, 1, 'highpass');
+    }
+    // ベース(シンコペーション)
+    if (BASS_STEPS.indexOf(sub) >= 0){
+      var bo = actx.createOscillator(); bo.type = 'sawtooth';
+      bo.frequency.setValueAtTime(mtof(chord.bass), t);
+      var bf = actx.createBiquadFilter();
+      bf.type = 'lowpass'; bf.frequency.value = 700; bf.Q.value = 6;
+      var bg = actx.createGain();
+      bg.gain.setValueAtTime(0.0001, t);
+      bg.gain.exponentialRampToValueAtTime(MIX.bass, t + 0.012);
+      bg.gain.exponentialRampToValueAtTime(0.0001, t + 0.19);
+      bo.connect(bf); bf.connect(bg); bg.connect(bgmGain);
+      bo.start(t); bo.stop(t + 0.22);
+    }
+    // オルゴール風アルペジオ(16分で回す)
+    var arpMidi = chord.tones[step % chord.tones.length] + 12;
+    tone('triangle', mtof(arpMidi), t, 0.16, MIX.arp);
+    // リード。2本をわずかにデチューンして重ねると不穏に揺れる
+    for (var i = 0; i < LEAD[bar].length; i++){
+      if (LEAD[bar][i][0] === sub){
+        var lm = mtof(LEAD[bar][i][1]);
+        var lvol = musicIntense ? MIX.lead : MIX.lead * 0.65;
+        tone('square', lm, t, 0.22, lvol, bgmGain, -7);
+        tone('square', lm, t, 0.22, lvol, bgmGain, +9);
+      }
+    }
+    // 小節の頭で鳴るオルゴールの鐘
+    if ((bar === 0 || bar === 2) && sub === 0){
+      tone('triangle', mtof(chord.tones[2] + 24), t, 1.1, MIX.bell);
+    }
+  }
+
+  function schedulerTick(){
+    if (!actx || !bgmStarted) return;
+    var guard = 0;
+    while (nextStepTime < actx.currentTime + SCHEDULE_AHEAD && guard++ < 64){
+      if (soundOn) scheduleStep(curStep, nextStepTime);
+      nextStepTime += stepDur();
+      curStep = (curStep + 1) % 64;
+    }
+  }
+
+  function startBgm(){
+    if (!actx || bgmStarted) return;
+    bgmStarted = true;
+    curStep = 0;
+    nextStepTime = actx.currentTime + 0.12;
+    // 低いうなりドローン(2本をわずかにずらして不気味なビートを作る)
+    [55, 55.35].forEach(function(f){
+      var o = actx.createOscillator(); o.type = 'sine'; o.frequency.value = f;
+      var g = actx.createGain(); g.gain.value = 0;
+      g.gain.setTargetAtTime(MIX.drone, actx.currentTime + 0.2, 0.8);
+      o.connect(g); g.connect(bgmGain);
+      o.start(); droneNodes.push(o);
+    });
+    schedTimer = setInterval(schedulerTick, LOOKAHEAD_MS);
+    schedulerTick();
+    bgmGain.gain.setTargetAtTime(soundOn ? 0.30 : 0.0, actx.currentTime, 0.4);
+  }
+  function stopBgm(){
+    if (schedTimer){ clearInterval(schedTimer); schedTimer = null; }
+    droneNodes.forEach(function(o){ try{ o.stop(); }catch(e){} });
+    droneNodes = [];
+    bgmStarted = false;
+  }
+  function setMusicIntense(on){
+    musicIntense = on;
+    bpm = on ? 140 : 128;
+  }
+  function beep(freq, dur, type, vol, when, glideTo){
+    if (!actx || !soundOn) return;
+    var o = actx.createOscillator();
+    o.type = type || 'sine';
+    o.frequency.value = freq;
+    if (glideTo) o.frequency.exponentialRampToValueAtTime(glideTo, actx.currentTime + (when||0) + dur);
+    var g = actx.createGain();
+    g.gain.value = 0.0001;
+    var t0 = actx.currentTime + (when || 0);
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.exponentialRampToValueAtTime(vol || 0.5, t0 + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    o.connect(g); g.connect(sfxGain);
+    o.start(t0); o.stop(t0 + dur + 0.05);
+  }
+  // 効果音も曲と同じ Am キーに合わせる(ぶつかると音痴に聞こえるため)
+  function sfxCoin(){ beep(mtof(81), 0.09, 'triangle', 0.5, 0, mtof(88)); }      // A5 → E6
+  function sfxLevelUp(){                                                          // Am の駆け上がり
+    beep(mtof(69),0.09,'square',0.4,0); beep(mtof(72),0.09,'square',0.4,0.08);
+    beep(mtof(76),0.09,'square',0.42,0.16); beep(mtof(81),0.18,'square',0.45,0.24);
+  }
+  function sfxHit(){ beep(mtof(44),0.16,'square',0.5,0,mtof(32)); }               // 低く落ちる
+  function sfxWin(){                                                              // Am → 明るく解決
+    beep(mtof(69),0.11,'triangle',0.5,0); beep(mtof(72),0.11,'triangle',0.5,0.10);
+    beep(mtof(76),0.11,'triangle',0.5,0.20); beep(mtof(81),0.26,'triangle',0.55,0.30);
+  }
+  function sfxLose(){                                                             // 半音で沈むホラーの終わり方
+    beep(mtof(57),0.20,'sawtooth',0.35,0,mtof(45));
+    beep(mtof(56),0.28,'sawtooth',0.32,0.16,mtof(44));
+  }
+
+  function setSound(on){
+    soundOn = on;
+    soundBtn.textContent = on ? '🔊' : '🔇';
+    if (actx) bgmGain.gain.setTargetAtTime(on && bgmStarted ? 0.30 : 0.0, actx.currentTime, 0.3);
+  }
+  soundBtn.addEventListener('click', function(){ setSound(!soundOn); });
+
+  function stopAllAudio(){
+    if (!actx) return;
+    try{ bgmGain.gain.setTargetAtTime(0.0, actx.currentTime, 0.05); }catch(e){}
+    stopBgm();                                   // スケジューラとドローンを必ず止める
+    try{ actx.suspend(); }catch(e){}
+  }
+  document.addEventListener('visibilitychange', function(){
+    if (document.hidden){ stopAllAudio(); }
+    else if (running){ resumeAudioIfNeeded(); startBgm(); }
+  });
+  window.addEventListener('pagehide', stopAllAudio);
+  window.addEventListener('blur', stopAllAudio);
+
+  /* ================= ゲーム定数(検証済み) ================= */
+  var PLAYER_R = 15;
+  var PLAYER_SPEED = 260;
+  var ENEMY_R = 13;
+  var ENEMY_SPEED0 = 55;
+  var ENEMY_SPEED_GROW = 0.9;
+  var ENEMY_SPEED_MAX = 130;
+  var SPAWN_BASE = 2.2;
+  var SPAWN_MIN = 1.1;
+  var SPAWN_SLOPE = 0.03;
+  var HP_START = 4;
+  var INVULN_T = 1.1;
+  var COIN_INTERVAL = 1.0;
+  var COIN_MIN_DIST_PLAYER = 90;
+  var COIN_WALL_MARGIN = 30;
+  var PICKUP_R = 30;
+  var MILESTONE = 6;
+  var LEVELUP_SPAWN_MULT = 0.9;
+  var LEVELUP_SPEED_BOOST = 8;
+  var T_TOTAL = 26.0;
+
+  /* ================= 状態 ================= */
+  var running = false;
+  var px, py, hp, coins, milestoneHit, tElapsed;
+  var enemies, coinList;
+  var invulnTimer, spawnTimer, coinTimer, spawnBase, enemySpeed0;
+  var dragging = false, targetX = 0, targetY = 0;
+  var stars = [];
+  var lastFrameTime = 0;
+  var playCount = 0;   // 何ラウンド遊んだか
+  var bestScore = 0;   // このセッションのさいこう記録
+
+  function initStars(){
+    stars = [];
+    for (var i = 0; i < 34; i++){
+      stars.push({ x: Math.random(), y: Math.random() * 0.5, r: 0.6 + Math.random() * 1.3, phase: Math.random() * Math.PI * 2, spd: 0.6 + Math.random() * 0.8 });
+    }
+  }
+
+  function resetGame(){
+    px = W / 2; py = H / 2;
+    targetX = px; targetY = py;
+    hp = HP_START; coins = 0; milestoneHit = false; tElapsed = 0;
+    enemies = []; coinList = [];
+    invulnTimer = 0; spawnTimer = 1.0; coinTimer = 0.4;
+    spawnBase = SPAWN_BASE; enemySpeed0 = ENEMY_SPEED0;
+    setMusicIntense(false);   // テンポを通常に戻す
+    renderHearts(); coinValEl.textContent = '0'; timeBarEl.style.width = '100%';
+  }
+
+  function renderHearts(){
+    var s = '';
+    for (var i = 0; i < HP_START; i++){
+      s += '<span class="' + (i < hp ? '' : 'empty') + '">💜</span>';
+    }
+    heartsEl.innerHTML = s;
+  }
+
+  function dist(x1,y1,x2,y2){ var dx=x1-x2, dy=y1-y2; return Math.sqrt(dx*dx+dy*dy); }
+
+  function spawnEnemy(){
+    var edge = Math.floor(Math.random() * 4);
+    var ex, ey;
+    if (edge === 0){ ex = Math.random()*W; ey = -24; }
+    else if (edge === 1){ ex = Math.random()*W; ey = H + 24; }
+    else if (edge === 2){ ex = -24; ey = Math.random()*H; }
+    else { ex = W + 24; ey = Math.random()*H; }
+    enemies.push({ x: ex, y: ey, seed: Math.random()*Math.PI*2, bob: 6+Math.random()*4 });
+  }
+
+  function spawnCoin(){
+    for (var t = 0; t < 12; t++){
+      var cx = COIN_WALL_MARGIN + Math.random() * (W - COIN_WALL_MARGIN*2);
+      var cy = COIN_WALL_MARGIN + Math.random() * (H - COIN_WALL_MARGIN*2);
+      if (dist(cx, cy, px, py) >= COIN_MIN_DIST_PLAYER){
+        coinList.push({ x: cx, y: cy, seed: Math.random()*Math.PI*2 });
+        return;
+      }
+    }
+  }
+
+  function endGame(win){
+    if (!running) return;   // 二重に終了処理が走らないように
+    running = false;
+    dragging = false;
+
+    playCount += 1;
+    var isNewBest = playCount > 1 && coins > bestScore;
+    if (coins > bestScore) bestScore = coins;
+
+    resultScore.textContent = coins;
+    playCountEl.textContent = playCount;
+    bestScoreEl.textContent = bestScore;
+    if (isNewBest){
+      newBestEl.classList.remove('hidden');
+      bestBoxEl.classList.add('isNew');
+    } else {
+      newBestEl.classList.add('hidden');
+      bestBoxEl.classList.remove('isNew');
+    }
+
+    if (win){
+      resultBig.textContent = 'せいぞん せいこう！';
+      resultMsg.textContent = 'よるの もりを ぶじに ぬけだした。';
+      resultHint.textContent = isNewBest
+        ? 'この しらべで いちばん あつめられた！'
+        : 'つぎは ' + (bestScore + 1) + 'まい い上を ねらってみよう';
+      celebrate('せいぞん せいこう！', 'コイン ' + coins + 'まい あつめた');
+      sfxWin();
+    } else {
+      resultBig.textContent = 'おばけに つかまった…';
+      resultMsg.textContent = tElapsed.toFixed(1) + 'びょう いきのこった。';
+      resultHint.textContent = 'コインより先に、おばけとの きょりを 見てみよう';
+      dangerPulse();
+      sfxLose();
+    }
+
+    // 演出を見せてから結果画面を出す(いきなり覆うと演出が見えない)
+    setTimeout(function(){
+      if (!running) resultEl.classList.remove('hidden');
+    }, win ? 1600 : 700);
+  }
+
+  /* ================= 入力 ================= */
+  function setTargetFromEvent(e){
+    var r = canvas.getBoundingClientRect();
+    var cx = (e.touches ? e.touches[0].clientX : e.clientX) - r.left;
+    var cy = (e.touches ? e.touches[0].clientY : e.clientY) - r.top;
+    targetX = Math.max(0, Math.min(W, cx));
+    targetY = Math.max(0, Math.min(H, cy));
+  }
+  canvas.addEventListener('pointerdown', function(e){
+    if (!running) return;
+    ensureAudio(); resumeAudioIfNeeded(); startBgm();
+    dragging = true;
+    setTargetFromEvent(e);
+  });
+  canvas.addEventListener('pointermove', function(e){
+    if (!running || !dragging) return;
+    setTargetFromEvent(e);
+  });
+  window.addEventListener('pointerup', function(){ dragging = false; });
+  window.addEventListener('pointercancel', function(){ dragging = false; });
+
+  /* ================= 更新 ================= */
+  function update(dt){
+    tElapsed += dt;
+
+    // player steering toward target at capped speed
+    var dx = targetX - px, dy = targetY - py;
+    var d = Math.sqrt(dx*dx + dy*dy);
+    var maxStep = PLAYER_SPEED * dt;
+    if (d <= maxStep || d < 0.0001){
+      px = targetX; py = targetY;
+    } else {
+      px += (dx/d) * maxStep;
+      py += (dy/d) * maxStep;
+    }
+    px = Math.max(PLAYER_R, Math.min(W - PLAYER_R, px));
+    py = Math.max(PLAYER_R, Math.min(H - PLAYER_R, py));
+
+    // spawn enemies
+    spawnTimer -= dt;
+    var curInt = Math.max(SPAWN_MIN, spawnBase - SPAWN_SLOPE * tElapsed);
+    if (spawnTimer <= 0){ spawnTimer = curInt; spawnEnemy(); }
+
+    // spawn coins
+    coinTimer -= dt;
+    if (coinTimer <= 0){ coinTimer = COIN_INTERVAL; spawnCoin(); }
+
+    // move enemies
+    var se = Math.min(ENEMY_SPEED_MAX, enemySpeed0 + ENEMY_SPEED_GROW * tElapsed);
+    for (var i = 0; i < enemies.length; i++){
+      var en = enemies[i];
+      var edx = px - en.x, edy = py - en.y;
+      var ed = Math.sqrt(edx*edx + edy*edy) || 1;
+      en.x += (edx/ed) * se * dt;
+      en.y += (edy/ed) * se * dt;
+    }
+
+    // invulnerability
+    if (invulnTimer > 0) invulnTimer -= dt;
+
+    // collisions
+    if (invulnTimer <= 0){
+      for (var j = 0; j < enemies.length; j++){
+        var e2 = enemies[j];
+        if (dist(px, py, e2.x, e2.y) < PLAYER_R + ENEMY_R){
+          hp -= 1;
+          enemies.splice(j, 1);
+          invulnTimer = INVULN_T;
+          renderHearts();
+          dangerPulse();
+          if (hp <= 0){ endGame(false); return; }
+          break;
+        }
+      }
+    }
+
+    // coin pickup
+    for (var k = coinList.length - 1; k >= 0; k--){
+      var co = coinList[k];
+      if (dist(px, py, co.x, co.y) < PICKUP_R){
+        coinList.splice(k, 1);
+        coins += 1;
+        coinValEl.textContent = coins;
+        sfxCoin();
+        if (coins >= MILESTONE && !milestoneHit){
+          milestoneHit = true;
+          spawnBase *= LEVELUP_SPAWN_MULT;
+          enemySpeed0 += LEVELUP_SPEED_BOOST;
+          setMusicIntense(true);   // 曲が速くなり、リードとハイハットが前に出る
+          miniCelebrate('レベルアップ！ おばけが ふえる…');
+        }
+      }
+    }
+
+    // timer bar
+    var remain = Math.max(0, (T_TOTAL - tElapsed) / T_TOTAL);
+    timeBarEl.style.width = (remain * 100) + '%';
+
+    if (tElapsed >= T_TOTAL){ endGame(true); return; }
+  }
+
+  /* ================= 描画 ================= */
+  function drawBackground(t){
+    // moon
+    ctx.save();
+    var mx = W * 0.78, my = H * 0.12, mr = Math.min(W,H) * 0.09;
+    var glow = ctx.createRadialGradient(mx,my,0,mx,my,mr*3.2);
+    glow.addColorStop(0,'rgba(240,233,255,0.28)');
+    glow.addColorStop(1,'rgba(240,233,255,0)');
+    ctx.fillStyle = glow;
+    ctx.beginPath(); ctx.arc(mx,my,mr*3.2,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#f3ecff';
+    ctx.beginPath(); ctx.arc(mx,my,mr,0,Math.PI*2); ctx.fill();
+    ctx.restore();
+
+    // stars
+    ctx.save();
+    for (var i = 0; i < stars.length; i++){
+      var s = stars[i];
+      var tw = 0.35 + 0.45 * Math.sin(t*s.spd + s.phase);
+      ctx.globalAlpha = Math.max(0, tw);
+      ctx.fillStyle = '#e7defd';
+      ctx.beginPath();
+      ctx.arc(s.x*W, s.y*H, s.r, 0, Math.PI*2);
+      ctx.fill();
+    }
+    ctx.restore();
+
+    // tree silhouettes (static shapes, seeded by index)
+    ctx.save();
+    ctx.fillStyle = '#0a0518';
+    var baseY = H * 0.94;
+    for (var k = 0; k < 7; k++){
+      var tx = (k / 6) * W + (k % 2 === 0 ? -14 : 14);
+      var th = H * (0.12 + ((k*37)%5)/40);
+      ctx.beginPath();
+      ctx.moveTo(tx, baseY);
+      ctx.lineTo(tx - th*0.32, baseY - th*0.55);
+      ctx.lineTo(tx - th*0.14, baseY - th*0.55);
+      ctx.lineTo(tx - th*0.4, baseY - th);
+      ctx.lineTo(tx + th*0.4, baseY - th);
+      ctx.lineTo(tx + th*0.14, baseY - th*0.55);
+      ctx.lineTo(tx + th*0.32, baseY - th*0.55);
+      ctx.closePath();
+      ctx.fill();
+    }
+    ctx.fillRect(0, baseY, W, H - baseY);
+    ctx.restore();
+  }
+
+  function drawPlayer(){
+    ctx.save();
+    ctx.translate(px, py);
+    // glow
+    var g = ctx.createRadialGradient(0,0,0,0,0,PLAYER_R*2.6);
+    g.addColorStop(0, invulnTimer > 0 ? 'rgba(255,95,126,0.35)' : 'rgba(255,210,60,0.25)');
+    g.addColorStop(1, 'rgba(255,210,60,0)');
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(0,0,PLAYER_R*2.6,0,Math.PI*2); ctx.fill();
+
+    if (invulnTimer > 0 && Math.floor(invulnTimer*10)%2===0){ ctx.globalAlpha = 0.4; }
+
+    // body
+    ctx.fillStyle = '#f5efff';
+    ctx.beginPath(); ctx.arc(0,2,PLAYER_R,0,Math.PI*2); ctx.fill();
+    // hat
+    ctx.fillStyle = '#ffd23c';
+    ctx.beginPath();
+    ctx.moveTo(-PLAYER_R*0.9, -PLAYER_R*0.35);
+    ctx.lineTo(PLAYER_R*0.9, -PLAYER_R*0.35);
+    ctx.lineTo(0, -PLAYER_R*1.9);
+    ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(0,-PLAYER_R*0.35, PLAYER_R*1.0, PLAYER_R*0.22, 0,0,Math.PI*2); ctx.fill();
+    // eyes
+    ctx.fillStyle = '#241454';
+    ctx.beginPath(); ctx.arc(-4.5,3,1.6,0,Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(4.5,3,1.6,0,Math.PI*2); ctx.fill();
+    ctx.restore();
+  }
+
+  function drawEnemies(t){
+    for (var i = 0; i < enemies.length; i++){
+      var en = enemies[i];
+      var by = Math.sin(t*3 + en.seed) * en.bob * 0.15;
+      ctx.save();
+      ctx.translate(en.x, en.y + by);
+      ctx.globalAlpha = 0.92;
+      ctx.fillStyle = '#e7defd';
+      ctx.beginPath();
+      ctx.arc(0, -2, ENEMY_R, Math.PI, 0, false);
+      ctx.lineTo(ENEMY_R, ENEMY_R*0.7);
+      var waves = 3;
+      for (var w = 0; w < waves; w++){
+        var wx = ENEMY_R - (w+1) * (ENEMY_R*2/waves);
+        var wy = (w % 2 === 0) ? ENEMY_R*1.1 : ENEMY_R*0.6;
+        ctx.lineTo(wx, wy);
+      }
+      ctx.lineTo(-ENEMY_R, ENEMY_R*0.7);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = '#241454';
+      ctx.beginPath(); ctx.arc(-4,-3,1.5,0,Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.arc(4,-3,1.5,0,Math.PI*2); ctx.fill();
+      ctx.restore();
+    }
+  }
+
+  function drawCoins(t){
+    for (var i = 0; i < coinList.length; i++){
+      var co = coinList[i];
+      var by = Math.sin(t*2.4 + co.seed) * 3;
+      var sx = Math.abs(Math.sin(t*1.6 + co.seed)) * 0.6 + 0.4;
+      ctx.save();
+      ctx.translate(co.x, co.y + by);
+      var g = ctx.createRadialGradient(0,0,0,0,0,16);
+      g.addColorStop(0,'rgba(255,210,60,0.35)');
+      g.addColorStop(1,'rgba(255,210,60,0)');
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.arc(0,0,16,0,Math.PI*2); ctx.fill();
+      ctx.scale(sx, 1);
+      ctx.fillStyle = '#ffd23c';
+      ctx.beginPath(); ctx.arc(0,0,9,0,Math.PI*2); ctx.fill();
+      ctx.fillStyle = '#ffb23c';
+      ctx.beginPath(); ctx.arc(0,0,5.5,0,Math.PI*2); ctx.fill();
+      ctx.restore();
+    }
+  }
+
+  function draw(t){
+    ctx.clearRect(0,0,W,H);
+    drawBackground(t);
+    drawCoins(t);
+    drawEnemies(t);
+    drawPlayer();
+  }
+
+  /* ================= ループ ================= */
+  function frame(now){
+    if (!lastFrameTime) lastFrameTime = now;
+    var dt = Math.min(0.05, (now - lastFrameTime) / 1000);
+    lastFrameTime = now;
+    if (running) update(dt);
+    draw(now/1000);
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+
+  /* ================= 開始/リトライ ================= */
+  function startGame(){
+    stopCelebrate();          // 前ラウンドの演出を持ち越さない
+    resetGame();
+    startOverlay.classList.add('hidden');
+    resultEl.classList.add('hidden');
+    lastFrameTime = 0;        // 裏で溜まった時間で一気に進まないように
+    running = true;
+  }
+  startBtn.addEventListener('click', function(){
+    ensureAudio(); resumeAudioIfNeeded(); startBgm();
+    startGame();
+  });
+  retryBtn.addEventListener('click', function(){
+    ensureAudio(); resumeAudioIfNeeded(); startBgm();
+    startGame();
+  });
+
+  initStars();
+  resetGame();
+
+})();
+</script>
+</body>
+</html>
