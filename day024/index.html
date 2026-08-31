@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>ちからかげん ビーだま｜Chuppy Games Day 024</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; -webkit-user-select: none; user-select: none; }
+
+  :root{
+    --ink:#2c3a18;
+    --accent:#ff3d6b;
+    --cream:#fbf6df;
+  }
+
+  html, body {
+    height: 100%;
+    overscroll-behavior: none;
+  }
+
+  body {
+    font-family: "Hiragino Maru Gothic ProN", "Hiragino Sans", "Yu Gothic", system-ui, sans-serif;
+    min-height: 100vh;
+    display: flex; align-items: flex-start; justify-content: center;
+    background: radial-gradient(120% 90% at 50% 0%, #eaf7c6 0%, #cfe6a0 42%, #8fbb5e 100%);
+    color: var(--ink);
+    padding: 16px;
+    padding-top: max(16px, 3vh);
+    overflow-y: auto;
+    overflow-x: hidden;
+    position: relative;
+  }
+
+  .app {
+    position: relative; z-index: 2;
+    width: 100%; max-width: 400px;
+  }
+
+  h1 {
+    font-size: 24px; text-align: center; letter-spacing: 1px;
+    color: var(--ink);
+    margin-bottom: 2px;
+    text-shadow: 0 2px 0 rgba(255,255,255,0.55);
+  }
+  .sub { text-align: center; font-size: 12px; opacity: 0.72; margin-bottom: 10px; font-weight: bold; }
+
+  .panel {
+    background: var(--cream);
+    border: 4px solid var(--ink);
+    border-radius: 22px;
+    padding: 10px;
+    box-shadow: 8px 8px 0 rgba(30,40,10,0.28);
+    position: relative;
+  }
+
+  .hud {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 2px 8px 8px;
+    font-weight: bold;
+  }
+  .hud .item { text-align: center; }
+  .hud .item i { display:block; font-size: 9px; opacity:.6; letter-spacing: 1px; }
+  .hud .item b { display:block; font-size: 20px; }
+  .hud .score b { color: var(--accent); }
+  .hud .time b { color: var(--ink); }
+  .hud .combo { font-size: 11px; color: var(--accent); font-weight: bold; min-height: 14px; }
+
+  #stage {
+    display: block; width: 100%; height: auto;
+    aspect-ratio: 340 / 560;
+    border-radius: 16px;
+    border: 3px solid #3d5220;
+    background: #6fa142;
+    touch-action: none;
+  }
+
+  .howto {
+    text-align: center; font-size: 11px; opacity: .68; padding: 8px 4px 2px; font-weight: bold;
+  }
+
+  #startBtn, #retryBtn {
+    display: block; margin: 12px auto 0;
+    background: var(--accent); color: #fff;
+    border: 4px solid var(--ink); border-radius: 16px;
+    box-shadow: 0 6px 0 var(--ink);
+    padding: 12px 30px; font-size: 17px; font-weight: bold;
+    font-family: inherit; cursor: pointer;
+    transition: transform 0.06s, box-shadow 0.06s;
+  }
+  #startBtn:active, #retryBtn:active { transform: translateY(6px); box-shadow: 0 0 0 var(--ink); }
+
+  #soundBtn {
+    position: absolute; top: 10px; right: 10px; z-index: 3;
+    width: 34px; height: 34px; border-radius: 50%;
+    border: 3px solid var(--ink); background: var(--cream);
+    font-size: 15px; display:flex; align-items:center; justify-content:center;
+    cursor: pointer;
+  }
+
+  /* ---- 結果オーバーレイ ---- */
+  #result {
+    position: fixed; inset: 0; z-index: 96;
+    display: none; align-items: center; justify-content: center;
+    background: rgba(30,40,10,0.55);
+  }
+  #result.show { display: flex; }
+  .resultCard {
+    background: var(--cream); border: 5px solid var(--ink); border-radius: 24px;
+    padding: 28px 26px; text-align: center; width: 82%; max-width: 320px;
+    box-shadow: 10px 10px 0 rgba(20,20,10,0.4);
+    animation: popIn 0.35s cubic-bezier(.2,1.6,.4,1);
+  }
+  @keyframes popIn { 0%{transform:scale(.5); opacity:0} 100%{transform:scale(1); opacity:1} }
+  .resultCard .cap { font-size: 13px; font-weight: bold; opacity: .7; letter-spacing: 2px; }
+  .resultCard .num { font-size: 58px; font-weight: bold; color: var(--accent); line-height: 1.05; margin: 4px 0; }
+  .resultCard .msg { font-size: 14px; font-weight: bold; margin-bottom: 6px; }
+  .resultCard .hint { font-size: 12px; opacity: .68; margin-bottom: 4px; }
+
+  /* ===== 演出エンジン ===== */
+  #fx { position: fixed; inset: 0; pointer-events: none; overflow: hidden; z-index: 90; }
+  .petal { position: absolute; top: -24px; animation: fall linear forwards; will-change: transform; }
+  @keyframes fall { to { transform: translateY(115vh) rotate(420deg); } }
+
+  #flash { position: fixed; inset: 0; z-index: 93; background: #fff; opacity: 0; pointer-events: none; }
+  #flash.go { animation: flashOut 0.4s ease-out forwards; }
+  @keyframes flashOut { 0% { opacity: 0.6; } 100% { opacity: 0; } }
+
+  .wiggle { animation: wig 0.4s ease-in-out 2; }
+  @keyframes wig {
+    0%,100% { transform: rotate(0deg); }
+    25% { transform: rotate(-1.6deg); }
+    75% { transform: rotate(1.6deg); }
+  }
+
+  #toast {
+    position: fixed; left: 50%; top: 20%; transform: translateX(-50%);
+    z-index: 94; display: none;
+    background: var(--accent); color: #fff;
+    border: 4px solid var(--ink); border-radius: 999px;
+    padding: 8px 20px; font-size: 17px; font-weight: bold;
+    box-shadow: 5px 5px 0 rgba(20,20,10,0.4);
+  }
+  #toast.show { display: block; animation: toastIn 1.2s ease-out forwards; }
+  @keyframes toastIn {
+    0%   { transform: translateX(-50%) scale(0.4); opacity: 0; }
+    18%  { transform: translateX(-50%) scale(1.08); opacity: 1; }
+    30%,80% { transform: translateX(-50%) scale(1); opacity: 1; }
+    100% { transform: translateX(-50%) translateY(-20px) scale(0.9); opacity: 0; }
+  }
+
+  #banner { position: fixed; inset: 0; z-index: 95; display: none; align-items: center; justify-content: center; pointer-events: none; }
+  #banner.show { display: flex; }
+  .bnr {
+    background: #ffe27a; border: 6px solid var(--ink); border-radius: 22px;
+    padding: 18px 30px; text-align: center;
+    box-shadow: 10px 10px 0 rgba(20,20,10,0.4);
+    animation: burstIn 0.5s cubic-bezier(.2,1.8,.4,1);
+  }
+  @keyframes burstIn { 0%{transform:scale(0.3) rotate(-10deg); opacity:0} 100%{transform:scale(1) rotate(-3deg); opacity:1} }
+  .bnr .big { font-size: 34px; font-weight: bold; color: var(--accent); line-height: 1.15; }
+  .bnr .small { font-size: 13px; font-weight: bold; margin-top: 6px; color: var(--ink); }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <h1>ちからかげん ビーだま</h1>
+  <p class="sub">ひっぱって はなす。つよすぎると あなに おちない</p>
+
+  <div class="panel">
+    <button id="soundBtn">🔊</button>
+    <div class="hud">
+      <div class="item time"><i>のこり</i><b id="hudTime">30</b></div>
+      <div class="item score"><i>あな いん</i><b id="hudScore">0</b></div>
+      <div class="item"><div class="combo" id="hudCombo"></div></div>
+    </div>
+    <canvas id="stage" width="340" height="560"></canvas>
+    <p class="howto">たまを ひっぱって ねらいを さだめる</p>
+  </div>
+
+  <button id="startBtn">スタート</button>
+</div>
+
+<div id="result">
+  <div class="resultCard">
+    <div class="cap">RESULT</div>
+    <div class="num" id="resNum">0</div>
+    <div class="msg" id="resMsg"></div>
+    <div class="hint" id="resHint"></div>
+    <button id="retryBtn">もういちど</button>
+  </div>
+</div>
+
+<div id="fx"></div>
+<div id="flash"></div>
+<div id="toast"></div>
+<div id="banner"><div class="bnr"><div class="big" id="bnrBig"></div><div class="small" id="bnrSmall"></div></div></div>
+
+<script>
+/* ===== 演出エンジン ===== */
+const fx = document.getElementById('fx');
+const flash = document.getElementById('flash');
+const toast = document.getElementById('toast');
+const banner = document.getElementById('banner');
+const app = document.querySelector('.app');
+const PETALS = ['🍃','🍃','🌱','✨','🌼'];
+
+function petalBurst(n) {
+  for (let i = 0; i < n; i++) {
+    const p = document.createElement('div');
+    p.className = 'petal';
+    p.textContent = PETALS[Math.floor(Math.random() * PETALS.length)];
+    p.style.left = (Math.random() * 100) + '%';
+    p.style.fontSize = (14 + Math.random() * 20) + 'px';
+    p.style.animationDelay = (Math.random() * 0.6) + 's';
+    p.style.animationDuration = (1.3 + Math.random() * 1.1) + 's';
+    fx.appendChild(p);
+    setTimeout(() => p.remove(), 3200);
+  }
+}
+
+function doFlash() {
+  flash.classList.remove('go'); void flash.offsetWidth; flash.classList.add('go');
+}
+
+function shake(el) {
+  el.classList.remove('wiggle'); void el.offsetWidth; el.classList.add('wiggle');
+  setTimeout(() => el.classList.remove('wiggle'), 900);
+}
+
+function miniCelebrate(text) {
+  petalBurst(38); shake(app);
+  toast.textContent = text;
+  toast.classList.remove('show'); void toast.offsetWidth; toast.classList.add('show');
+  setTimeout(() => toast.classList.remove('show'), 1250);
+}
+
+function celebrate(bigText, smallText) {
+  // 4波construct: 0.5秒おきに重ねて派手にする
+  doFlash(); petalBurst(70); shake(app);
+  document.getElementById('bnrBig').textContent = bigText;
+  document.getElementById('bnrSmall').textContent = smallText || '';
+  banner.classList.add('show');
+  setTimeout(() => { petalBurst(45); shake(app); }, 500);
+  setTimeout(() => { doFlash(); petalBurst(45); }, 1000);
+  setTimeout(() => { petalBurst(30); shake(app); }, 1500);
+  setTimeout(() => banner.classList.remove('show'), 2000);
+}
+/* ===== ここまで ===== */
+
+/* ================= ゲーム本体 ================= */
+
+const cv = document.getElementById('stage');
+const ctx = cv.getContext('2d');
+const W = 340, H = 560;
+
+// --- 物理定数(day024_balance_sim.py と同じ値) ---
+const A = 260;       // 減速(px/s^2)
+const VT = 92;        // これより遅い速さで穴の上にいると おちる
+const RH = 24;        // 穴の半径
+const RM = 13;        // たまの半径
+const HOLE = { x: 170, y: 130 };
+const BOUNDS = { xMin: RM + 20, xMax: W - RM - 20, yMin: RM + 20, yMax: H - RM - 20 };
+const START_X = [70, 270];
+const START_Y = [380, 500];
+const MAX_POWER = 700;
+const DRAG_MAX_PX = 150;
+const RESTITUTION = 0.72;
+const STOP_EPS = 6;
+
+let ball, dragging = false, dragStart = null, isMoving = false;
+let score = 0, combo = 0, timeLeft = 30, playing = false, rafId = null, lastT = 0;
+let grassBlades = [];
+
+function rand(a, b) { return a + Math.random() * (b - a); }
+
+function newGrass() {
+  grassBlades = [];
+  for (let i = 0; i < 90; i++) {
+    grassBlades.push({
+      x: rand(0, W), y: rand(0, H),
+      h: rand(3, 8), tilt: rand(-0.3, 0.3),
+      tone: Math.random() < 0.5 ? 0 : 1
+    });
+  }
+}
+
+function resetBall() {
+  ball = {
+    x: rand(START_X[0], START_X[1]),
+    y: rand(START_Y[0], START_Y[1]),
+    vx: 0, vy: 0, r: RM,
+    sinking: false, sinkT: 0
+  };
+  isMoving = false;
+}
+
+function initGame() {
+  score = 0; combo = 0; timeLeft = 30;
+  document.getElementById('hudScore').textContent = '0';
+  document.getElementById('hudTime').textContent = '30';
+  document.getElementById('hudCombo').textContent = '';
+  newGrass();
+  resetBall();
+}
+
+/* ---- 入力(ひっぱって はなす) ---- */
+function pointFromEvent(e) {
+  const rect = cv.getBoundingClientRect();
+  const t = e.touches ? e.touches[0] : e;
+  return {
+    x: (t.clientX - rect.left) * (W / rect.width),
+    y: (t.clientY - rect.top) * (H / rect.height)
+  };
+}
+
+function onDown(e) {
+  if (!playing || isMoving) return;
+  const p = pointFromEvent(e);
+  const d = Math.hypot(p.x - ball.x, p.y - ball.y);
+  if (d < 46) { dragging = true; dragStart = p; }
+  e.preventDefault();
+}
+function onMove(e) {
+  if (!dragging) return;
+  dragStart = pointFromEvent(e);
+  e.preventDefault();
+}
+function onUp(e) {
+  if (!dragging) return;
+  dragging = false;
+  const p = dragStart;
+  let dx = ball.x - p.x, dy = ball.y - p.y;
+  let dist = Math.hypot(dx, dy);
+  if (dist < 8) return; // ちいさすぎる引きは無視
+  dist = Math.min(dist, DRAG_MAX_PX);
+  const power = (dist / DRAG_MAX_PX) * MAX_POWER;
+  const ux = dx / Math.max(1, Math.hypot(dx, dy)), uy = dy / Math.max(1, Math.hypot(dx, dy));
+  ball.vx = ux * power;
+  ball.vy = uy * power;
+  isMoving = true;
+  playSfx('flick');
+  e.preventDefault();
+}
+
+cv.addEventListener('pointerdown', onDown);
+cv.addEventListener('pointermove', onMove);
+window.addEventListener('pointerup', onUp);
+
+/* ---- 物理更新 ---- */
+function stepPhysics(dt) {
+  if (!isMoving || ball.sinking) return;
+  const speed = Math.hypot(ball.vx, ball.vy);
+  if (speed > 0) {
+    const decel = A * dt;
+    const ns = Math.max(0, speed - decel);
+    const k = speed > 0 ? ns / speed : 0;
+    ball.vx *= k; ball.vy *= k;
+  }
+  ball.x += ball.vx * dt;
+  ball.y += ball.vy * dt;
+
+  if (ball.x < BOUNDS.xMin) { ball.x = BOUNDS.xMin; ball.vx = Math.abs(ball.vx) * RESTITUTION; }
+  if (ball.x > BOUNDS.xMax) { ball.x = BOUNDS.xMax; ball.vx = -Math.abs(ball.vx) * RESTITUTION; }
+  if (ball.y < BOUNDS.yMin) { ball.y = BOUNDS.yMin; ball.vy = Math.abs(ball.vy) * RESTITUTION; }
+  if (ball.y > BOUNDS.yMax) { ball.y = BOUNDS.yMax; ball.vy = -Math.abs(ball.vy) * RESTITUTION; }
+
+  const distHole = Math.hypot(ball.x - HOLE.x, ball.y - HOLE.y);
+  const curSpeed = Math.hypot(ball.vx, ball.vy);
+
+  if (distHole < RH && curSpeed < VT) {
+    startSink();
+    return;
+  }
+  if (curSpeed < STOP_EPS) {
+    ball.vx = 0; ball.vy = 0;
+    onAttemptEnd(false);
+  }
+}
+
+function startSink() {
+  ball.sinking = true; ball.sinkT = 0; ball.vx = 0; ball.vy = 0;
+  onAttemptEnd(true);
+}
+
+function onAttemptEnd(sank) {
+  isMoving = false;
+  if (sank) {
+    score++; combo++;
+    document.getElementById('hudScore').textContent = score;
+    playSfx('sink');
+    if (combo >= 3) {
+      document.getElementById('hudCombo').textContent = combo + 'れんぞく！';
+      celebrate(combo + 'れんぞく IN！', 'あなに すいこまれる かんかく、つかんだ！');
+      playSfx('fanfare');
+    } else {
+      document.getElementById('hudCombo').textContent = combo >= 2 ? combo + 'れんぞく' : '';
+      const msgs = ['すとん！', 'きまった！', 'ナイス かげん！'];
+      miniCelebrate(msgs[Math.floor(Math.random() * msgs.length)]);
+    }
+    setTimeout(() => { if (playing) resetBall(); }, 620);
+  } else {
+    combo = 0;
+    document.getElementById('hudCombo').textContent = '';
+    setTimeout(() => { if (playing) resetBall(); }, 260);
+  }
+}
+
+/* ---- 描画 ---- */
+function draw() {
+  ctx.clearRect(0, 0, W, H);
+
+  const g = ctx.createLinearGradient(0, 0, 0, H);
+  g.addColorStop(0, '#9fcf63');
+  g.addColorStop(1, '#5f9236');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, W, H);
+
+  ctx.save();
+  for (const b of grassBlades) {
+    ctx.strokeStyle = b.tone ? 'rgba(255,255,255,0.16)' : 'rgba(30,50,10,0.16)';
+    ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    ctx.moveTo(b.x, b.y);
+    ctx.lineTo(b.x + b.tilt * 10, b.y - b.h);
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  // 土の穴
+  const soilR = RH + 14;
+  const sg = ctx.createRadialGradient(HOLE.x, HOLE.y, 2, HOLE.x, HOLE.y, soilR);
+  sg.addColorStop(0, '#3a2a16');
+  sg.addColorStop(1, '#8a6338');
+  ctx.beginPath();
+  ctx.fillStyle = sg;
+  ctx.arc(HOLE.x, HOLE.y, soilR, 0, Math.PI * 2);
+  ctx.fill();
+
+  const hg = ctx.createRadialGradient(HOLE.x, HOLE.y - 3, 1, HOLE.x, HOLE.y, RH);
+  hg.addColorStop(0, '#2a1a0c');
+  hg.addColorStop(1, '#150d06');
+  ctx.beginPath();
+  ctx.fillStyle = hg;
+  ctx.arc(HOLE.x, HOLE.y, RH, 0, Math.PI * 2);
+  ctx.fill();
+
+  // ドラッグ中のガイド
+  if (dragging && dragStart) {
+    const dx = ball.x - dragStart.x, dy = ball.y - dragStart.y;
+    const dist = Math.min(Math.hypot(dx, dy), DRAG_MAX_PX);
+    const t = dist / DRAG_MAX_PX;
+    const ux = dx / Math.max(1, Math.hypot(dx, dy)), uy = dy / Math.max(1, Math.hypot(dx, dy));
+    const ex = ball.x + ux * dist, ey = ball.y + uy * dist;
+    ctx.save();
+    ctx.strokeStyle = `rgba(255,${Math.round(200 - t * 160)},${Math.round(120 - t * 100)},0.9)`;
+    ctx.lineWidth = 4;
+    ctx.setLineDash([7, 7]);
+    ctx.beginPath();
+    ctx.moveTo(ball.x, ball.y);
+    ctx.lineTo(ex, ey);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.beginPath();
+    ctx.fillStyle = '#2c3a18';
+    ctx.arc(ex, ey, 5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  // たま
+  if (ball && !(ball.sinking && ball.sinkT > 0.35)) {
+    let sc = 1, alpha = 1;
+    if (ball.sinking) {
+      sc = Math.max(0, 1 - ball.sinkT / 0.35);
+      alpha = sc;
+    }
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.translate(ball.x, ball.y);
+    ctx.scale(sc, sc);
+    const bg2 = ctx.createRadialGradient(-4, -5, 1, 0, 0, RM);
+    bg2.addColorStop(0, '#ffffff');
+    bg2.addColorStop(0.35, '#bfe3ff');
+    bg2.addColorStop(1, '#3d7dc4');
+    ctx.beginPath();
+    ctx.fillStyle = bg2;
+    ctx.arc(0, 0, RM, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.fillStyle = 'rgba(255,255,255,0.85)';
+    ctx.arc(-4, -5, 3.4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+}
+
+/* ---- ループ ---- */
+function loop(ts) {
+  if (!playing) return;
+  if (!lastT) lastT = ts;
+  let dt = (ts - lastT) / 1000;
+  dt = Math.min(dt, 0.033);
+  lastT = ts;
+
+  stepPhysics(dt);
+  if (ball.sinking) {
+    ball.sinkT += dt;
+  }
+  draw();
+
+  rafId = requestAnimationFrame(loop);
+}
+
+/* ---- タイマー ---- */
+let timerId = null;
+function startTimer() {
+  timerId = setInterval(() => {
+    timeLeft--;
+    document.getElementById('hudTime').textContent = Math.max(0, timeLeft);
+    if (timeLeft <= 0) endGame();
+  }, 1000);
+}
+function stopTimer() { clearInterval(timerId); }
+
+/* ---- 開始 / 終了 ---- */
+function startGame() {
+  document.getElementById('startBtn').style.display = 'none';
+  document.getElementById('result').classList.remove('show');
+  initGame();
+  playing = true; lastT = 0;
+  startTimer();
+  rafId = requestAnimationFrame(loop);
+  ensureAudio();
+}
+
+function endGame() {
+  playing = false;
+  stopTimer();
+  cancelAnimationFrame(rafId);
+  stopBgm();
+
+  const numEl = document.getElementById('resNum');
+  const msgEl = document.getElementById('resMsg');
+  const hintEl = document.getElementById('resHint');
+  numEl.textContent = score;
+  if (score >= 8) { msgEl.textContent = 'かげんの たつじん！'; hintEl.textContent = '力の よみが ぴったり あってる証拠。'; }
+  else if (score >= 4) { msgEl.textContent = 'なかなか いいかんじ！'; hintEl.textContent = '距離が かわるたび、少し弱めに ひくと安定するかも。'; }
+  else if (score >= 1) { msgEl.textContent = 'あと すこし！'; hintEl.textContent = '強く引きすぎ注意。ゆっくり短めに ひいてみて。'; }
+  else { msgEl.textContent = 'つぎは きっと はいる！'; hintEl.textContent = 'まず弱めに引いて、届く強さを つかもう。'; }
+
+  document.getElementById('result').classList.add('show');
+}
+
+document.getElementById('startBtn').addEventListener('click', startGame);
+document.getElementById('retryBtn').addEventListener('click', startGame);
+
+/* 初期描画(スタート前のプレビュー) */
+newGrass(); resetBall(); draw();
+
+/* ================= サウンド ================= */
+let actx = null, sfxGain = null, bgmGain = null, muted = false, bgmNodes = [];
+function ensureAudio() {
+  if (actx) return;
+  actx = new (window.AudioContext || window.webkitAudioContext)();
+  sfxGain = actx.createGain(); sfxGain.gain.value = 0.7; sfxGain.connect(actx.destination);
+  bgmGain = actx.createGain(); bgmGain.gain.value = 0.0; bgmGain.connect(actx.destination);
+}
+
+function tone(freq, dur, type, gainNode, vol, delay) {
+  if (!actx || muted) return;
+  const osc = actx.createOscillator();
+  const g = actx.createGain();
+  osc.type = type; osc.frequency.value = freq;
+  const t0 = actx.currentTime + (delay || 0);
+  g.gain.setValueAtTime(0.0001, t0);
+  g.gain.linearRampToValueAtTime(vol, t0 + 0.012);
+  g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+  osc.connect(g); g.connect(gainNode);
+  osc.start(t0); osc.stop(t0 + dur + 0.02);
+}
+
+function playSfx(name) {
+  if (!actx || muted) return;
+  if (name === 'flick') {
+    tone(320, 0.09, 'triangle', sfxGain, 0.5, 0);
+  } else if (name === 'sink') {
+    tone(660, 0.14, 'sine', sfxGain, 0.55, 0);
+    tone(880, 0.18, 'sine', sfxGain, 0.45, 0.06);
+  } else if (name === 'fanfare') {
+    [660, 880, 1100, 1320].forEach((f, i) => tone(f, 0.22, 'square', sfxGain, 0.35, i * 0.09));
+  }
+}
+
+function stopBgm() {
+  bgmNodes.forEach(n => { try { n.stop(); } catch (e) {} });
+  bgmNodes = [];
+  if (actx && actx.state === 'running') actx.suspend();
+}
+
+document.getElementById('soundBtn').addEventListener('click', () => {
+  muted = !muted;
+  document.getElementById('soundBtn').textContent = muted ? '🔇' : '🔊';
+  if (muted) stopBgm();
+});
+
+document.addEventListener('visibilitychange', () => { if (document.hidden) stopBgm(); });
+window.addEventListener('pagehide', stopBgm);
+window.addEventListener('blur', stopBgm);
+</script>
+</body>
+</html>
