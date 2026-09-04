@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>ひかる ドミノ たおし｜Chuppy Games Day 026</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+  :root{
+    --bg1:#070c16; --bg2:#0f1e36;
+    --text:#dff6ff; --dim:rgba(223,246,255,.42); --dim2:rgba(223,246,255,.2);
+    --accent:#ff3d9a; --accentDim:rgba(255,61,154,.35);
+  }
+
+  html,body{ height:100%; }
+  body {
+    font-family: "Hiragino Maru Gothic ProN", "Hiragino Sans", "Yu Gothic", system-ui, sans-serif;
+    min-height: 100vh;
+    display: flex; align-items: center; justify-content: center;
+    padding: 16px;
+    color: var(--text);
+    background: radial-gradient(140% 90% at 50% -10%, #16233f 0%, var(--bg1) 55%, #030509 100%);
+    overflow: hidden; position: relative; user-select: none;
+  }
+
+  /* ---- よぞらの粒(装飾) ---- */
+  .stars{ position:fixed; inset:0; z-index:0; pointer-events:none; }
+  .stars i{
+    position:absolute; width:2px; height:2px; border-radius:50%;
+    background:var(--text); opacity:.35;
+    animation: twinkle 3.4s ease-in-out infinite;
+  }
+  @keyframes twinkle{ 0%,100%{opacity:.15} 50%{opacity:.7} }
+
+  .app {
+    position: relative; z-index: 3;
+    width: 100%; max-width: 400px;
+    background: linear-gradient(180deg, #0c1830 0%, #08101f 100%);
+    border: 1px solid rgba(223,246,255,.12);
+    border-radius: 26px;
+    padding: 20px 16px 18px;
+    box-shadow: 0 20px 50px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.05);
+  }
+
+  header{ text-align:center; margin-bottom: 12px; }
+  h1 { font-size: 20px; letter-spacing: 2px; color: var(--text); text-shadow:0 0 16px rgba(223,246,255,.35); }
+  .sub { font-size: 10.5px; color: var(--dim); margin-top: 4px; letter-spacing: 1px; }
+
+  .hud{ display:flex; justify-content:center; align-items:center; gap:8px; margin: 12px 0 4px; }
+  .counter{
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 13px; color: var(--dim); letter-spacing:1px;
+    border:1px solid rgba(223,246,255,.18); border-radius:999px;
+    padding: 4px 14px; background: rgba(223,246,255,.04);
+  }
+  .counter b{ color:var(--accent); font-size:15px; }
+
+  .stage{
+    position: relative; border-radius: 18px; overflow: hidden;
+    background: linear-gradient(180deg, #0a1526 0%, #060c18 100%);
+    height: 300px; padding: 14px 10px 10px;
+    display:flex; flex-direction:column; align-items:center; justify-content:flex-end;
+    border:1px solid rgba(223,246,255,.08);
+  }
+  .deskgrid{
+    position:absolute; inset:0; opacity:.5; pointer-events:none;
+    background-image:
+      repeating-linear-gradient(0deg, rgba(223,246,255,.035) 0 1px, transparent 1px 22px),
+      repeating-linear-gradient(90deg, rgba(223,246,255,.035) 0 1px, transparent 1px 22px);
+  }
+  .glow{
+    position:absolute; width:220px; height:220px; border-radius:50%;
+    background: radial-gradient(circle, rgba(255,61,154,.16) 0%, transparent 70%);
+    top:-70px; left:50%; transform:translateX(-50%); pointer-events:none;
+  }
+
+  .row{
+    position:relative; z-index:2;
+    display:flex; align-items:flex-end; justify-content:center;
+    gap: 7px; height: 76px; margin-bottom: 14px;
+    flex-wrap: nowrap;
+  }
+  .domino{
+    position:relative; width: 15px; height: 58px; border-radius: 4px;
+    background: linear-gradient(180deg, #eafcff 0%, var(--text) 60%, #a9d9ec 100%);
+    box-shadow: 0 0 10px rgba(223,246,255,.55), inset 0 0 0 1px rgba(6,12,24,.35);
+    transform-origin: bottom center;
+    transition: transform .34s cubic-bezier(.4,1.6,.4,1), opacity .5s ease;
+    flex: 0 0 auto;
+  }
+  .domino::before, .domino::after{
+    content:""; position:absolute; left:50%; width:5px; height:5px; border-radius:50%;
+    background: rgba(6,12,24,.4); transform:translateX(-50%);
+  }
+  .domino::before{ top:14px; } .domino::after{ top:26px; }
+  .domino i{
+    position:absolute; left:0; right:0; bottom:-6px; height:3px; border-radius:2px;
+  }
+  .domino.q-perfect i{ background: var(--accent); box-shadow:0 0 8px var(--accent); }
+  .domino.q-good i{ background: var(--text); opacity:.85; }
+  .domino.q-marginal i{ background: var(--text); opacity:.4; }
+  .domino.q-bad i{ background: var(--text); opacity:.15; }
+  .domino.down{
+    transform: rotate(88deg) translate(2px,2px);
+    background: linear-gradient(180deg, #6f8fa0 0%, #47616f 100%);
+    box-shadow:none; opacity:.85;
+  }
+
+  .timing{ position:relative; z-index:2; width:100%; }
+  .track{
+    position:relative; height: 14px; border-radius: 999px; overflow:hidden;
+    background: rgba(223,246,255,.06); border:1px solid rgba(223,246,255,.14);
+  }
+  .zone{ position:absolute; top:0; bottom:0; }
+  .z-badL{ left:0; width:33%; background: rgba(223,246,255,.03); }
+  .z-badR{ right:0; width:33%; background: rgba(223,246,255,.03); }
+  .z-marL{ left:33%; width:6.5%; background: rgba(223,246,255,.10); }
+  .z-marR{ right:33%; width:6.5%; background: rgba(223,246,255,.10); }
+  .z-goodL{ left:39.5%; width:5.5%; background: rgba(223,246,255,.22); }
+  .z-goodR{ right:39.5%; width:5.5%; background: rgba(223,246,255,.22); }
+  .z-perfect{ left:45%; width:10%; background: var(--accentDim); box-shadow:0 0 10px var(--accent) inset; }
+  .marker{
+    position:absolute; top:-3px; bottom:-3px; left:0; width:4px; border-radius:2px;
+    background: var(--text); box-shadow:0 0 8px var(--text);
+  }
+  .hint{ text-align:center; font-size: 11.5px; color: var(--dim); margin-top: 9px; letter-spacing:.5px; min-height:16px; }
+
+  button.btn{
+    display:block; width:100%; margin-top: 12px;
+    background: var(--accent); color:#fff0f7; border:none;
+    border-radius: 999px; box-shadow: 0 5px 0 #a41d63;
+    cursor: pointer; font-family: inherit; font-weight: bold;
+    font-size: 16px; padding: 13px 0 11px; letter-spacing:2px;
+  }
+  button.btn:active{ transform: translateY(3px); box-shadow: 0 2px 0 #a41d63; }
+  button.btn.ghost{ background: rgba(223,246,255,.08); color: var(--text); box-shadow:0 5px 0 rgba(0,0,0,.4); }
+  button.btn[hidden]{ display:none; }
+
+  .particleLayer{ position:fixed; inset:0; z-index: 40; pointer-events:none; overflow:hidden; }
+  .p{ position:absolute; border-radius:50%; will-change:transform,opacity; }
+
+  .flash{ position:fixed; inset:0; z-index:35; background:var(--text); opacity:0; pointer-events:none; }
+  .shake{ animation: shakeAnim .34s ease; }
+  @keyframes shakeAnim{
+    0%,100%{ transform: translate(0,0); }
+    20%{ transform: translate(-6px,2px); }
+    40%{ transform: translate(5px,-3px); }
+    60%{ transform: translate(-4px,3px); }
+    80%{ transform: translate(3px,-2px); }
+  }
+
+  .overlay{
+    position:absolute; inset:0; z-index:50;
+    background: rgba(5,9,18,.92);
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap: 10px; text-align:center; padding: 24px; border-radius: 18px;
+  }
+  .overlay[hidden]{ display:none; }
+  .overlay .banner{ font-size: 19px; color: var(--accent); text-shadow:0 0 14px var(--accent); min-height:24px; }
+  .overlay .score{ font-size: 46px; font-weight:800; color:var(--text); font-variant-numeric:tabular-nums; }
+  .overlay .score span{ font-size:16px; color:var(--dim); margin-left:4px; }
+  .overlay .tip{ font-size: 12px; color: var(--dim); line-height:1.7; max-width: 260px; }
+
+  #soundBtn{
+    position:absolute; top:14px; right:14px; z-index:60;
+    width:32px; height:32px; border-radius:50%; border:none;
+    background: rgba(223,246,255,.08); color:var(--text); font-size:14px;
+    display:flex; align-items:center; justify-content:center; cursor:pointer;
+  }
+
+  @media(max-width:380px){
+    .stage{ height: 280px; }
+    .domino{ width:13px; height:52px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="stars" id="stars"></div>
+<div class="flash" id="flash"></div>
+<div class="particleLayer" id="particleLayer"></div>
+
+<div class="app" id="app">
+  <button id="soundBtn">🔊</button>
+  <header>
+    <h1>ひかる ドミノ たおし</h1>
+    <p class="sub">よるの りかしつ・ちくこうドミノじっけん</p>
+  </header>
+
+  <div class="hud"><div class="counter"><span id="counterLabel">ならべた</span> <b id="counterNum">0</b>/10</div></div>
+
+  <div class="stage" id="stage">
+    <div class="deskgrid"></div>
+    <div class="glow"></div>
+    <div class="row" id="dominoRow"></div>
+    <div class="timing" id="timing">
+      <div class="track" id="track">
+        <div class="zone z-badL"></div>
+        <div class="zone z-badR"></div>
+        <div class="zone z-marL"></div>
+        <div class="zone z-marR"></div>
+        <div class="zone z-goodL"></div>
+        <div class="zone z-goodR"></div>
+        <div class="zone z-perfect"></div>
+        <div class="marker" id="marker"></div>
+      </div>
+      <p class="hint" id="hint">「はじめる」で じっけんスタート</p>
+    </div>
+    <div class="overlay" id="resultOverlay" hidden>
+      <p class="banner" id="banner"></p>
+      <p class="score"><span id="scoreNum">0</span><span>/10 たおれた</span></p>
+      <p class="tip" id="tip"></p>
+    </div>
+  </div>
+
+  <button class="btn" id="mainBtn">はじめる</button>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* =================== 定数(バランス調整ずみ) =================== */
+  // 1体目は自動で置く。2〜10体目を置くたびに、間隔のタイミングを判定する(9回)。
+  // 周期(ms)は置くたびに短くなる = だんだん速くなる
+  var GAP_T = [1000, 945, 890, 835, 780, 725, 670, 615, 560];
+  var PF = 0.05;   // かんぺき: 中心から ±5%×周期 以内
+  var GF = 0.105;  // まあまあ: ±10.5%
+  var MF = 0.17;   // ぎりぎり: ±17%(これを超えたら失敗=bad)
+  var TOTAL = 10;
+
+  /* =================== 要素取得 =================== */
+  var dominoRow = document.getElementById('dominoRow');
+  var track = document.getElementById('track');
+  var marker = document.getElementById('marker');
+  var hint = document.getElementById('hint');
+  var mainBtn = document.getElementById('mainBtn');
+  var counterNum = document.getElementById('counterNum');
+  var counterLabel = document.getElementById('counterLabel');
+  var resultOverlay = document.getElementById('resultOverlay');
+  var bannerEl = document.getElementById('banner');
+  var scoreNumEl = document.getElementById('scoreNum');
+  var tipEl = document.getElementById('tip');
+  var soundBtn = document.getElementById('soundBtn');
+  var app = document.getElementById('app');
+  var particleLayer = document.getElementById('particleLayer');
+  var flash = document.getElementById('flash');
+  var starsWrap = document.getElementById('stars');
+
+  /* =================== 状態(state) =================== */
+  var phase = 'intro'; // intro -> placing -> waiting -> toppling -> result
+  var gapIndex = 0;    // 0..8
+  var gapQuality = []; // 各すきまの判定
+  var roundActive = false;
+  var roundStart = 0;
+  var roundPeriod = 0;
+  var timeoutId = null;
+
+  /* =================== 星の装飾(見た目だけ) =================== */
+  (function makeStars(){
+    for(var i=0;i<26;i++){
+      var s = document.createElement('i');
+      s.style.left = (Math.random()*100)+'%';
+      s.style.top = (Math.random()*70)+'%';
+      s.style.animationDelay = (Math.random()*3)+'s';
+      starsWrap.appendChild(s);
+    }
+  })();
+
+  /* =================== 音まわり =================== */
+  var actx=null, sfxGain=null, muted=false;
+  function initAudio(){
+    if(actx) return;
+    var AC = window.AudioContext || window.webkitAudioContext;
+    actx = new AC();
+    sfxGain = actx.createGain(); sfxGain.gain.value = 0.5; sfxGain.connect(actx.destination);
+  }
+  function tone(freq, dur, type, vol, when, slideTo){
+    if(!actx || muted) return;
+    var t0 = actx.currentTime + (when||0);
+    var osc = actx.createOscillator(); var g = actx.createGain();
+    osc.type = type||'sine';
+    osc.frequency.setValueAtTime(freq, t0);
+    if(slideTo) osc.frequency.exponentialRampToValueAtTime(slideTo, t0+dur);
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.exponentialRampToValueAtTime(vol||0.3, t0+0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0+dur);
+    osc.connect(g); g.connect(sfxGain);
+    osc.start(t0); osc.stop(t0+dur+0.02);
+  }
+  function playPlace(q){
+    if(q==='perfect'){ tone(880,0.12,'triangle',0.4,0); tone(1320,0.09,'sine',0.2,0.03); }
+    else if(q==='good'){ tone(700,0.1,'triangle',0.32,0); }
+    else if(q==='marginal'){ tone(520,0.1,'triangle',0.24,0); }
+    else { tone(160,0.16,'sawtooth',0.22,0,90); }
+  }
+  function playFall(i){ tone(240+i*14,0.07,'square',0.16,0); }
+  function playStop(){ tone(120,0.2,'sawtooth',0.22,0,60); }
+  function playBig(){ [0,0.13,0.26,0.4].forEach(function(t,i){ tone(523+i*140,0.26,'triangle',0.4,t); }); }
+  function stopAllAudio(){ if(actx && actx.state==='running') actx.suspend(); }
+  document.addEventListener('visibilitychange', function(){
+    if(document.hidden) stopAllAudio();
+    else if(actx && actx.state==='suspended' && !muted) actx.resume();
+  });
+  window.addEventListener('pagehide', stopAllAudio);
+  window.addEventListener('blur', stopAllAudio);
+  soundBtn.addEventListener('pointerdown', function(e){
+    e.stopPropagation();
+    muted = !muted;
+    soundBtn.textContent = muted ? '🔇' : '🔊';
+  });
+
+  /* =================== パーティクル(requestAnimationFrame) =================== */
+  var particles = [];
+  var rafId = null;
+  var GRAVITY = 900; // px/s^2 -- ここを変えると粒の落ち方が変わる
+
+  function spawnParticles(cx, cy, count, opts){
+    opts = opts || {};
+    for(var i=0;i<count;i++){
+      var el = document.createElement('div');
+      el.className = 'p';
+      var size = 3 + Math.random()*(opts.big?5:3);
+      var color = (opts.accent && Math.random()<0.4) ? getCss('--accent') : getCss('--text');
+      el.style.width = size+'px';
+      el.style.height = size+'px';
+      el.style.left = cx+'px';
+      el.style.top = cy+'px';
+      el.style.background = color;
+      el.style.boxShadow = '0 0 6px ' + color;
+      particleLayer.appendChild(el);
+      var angle = Math.random()*Math.PI*2;
+      var speed = (opts.speed||160) * (0.4+Math.random()*0.9);
+      particles.push({
+        el: el, x: cx, y: cy,
+        vx: Math.cos(angle)*speed,
+        vy: Math.sin(angle)*speed - (opts.up?200:0),
+        life: 0, maxLife: 0.6+Math.random()*0.5,
+        gravity: opts.gravity===false ? 0 : GRAVITY
+      });
+    }
+    if(!rafId) rafId = requestAnimationFrame(particleLoop);
+  }
+  var lastT = 0;
+  function particleLoop(t){
+    if(!lastT) lastT = t;
+    var dt = Math.min(0.05, (t-lastT)/1000);
+    lastT = t;
+    for(var i=particles.length-1;i>=0;i--){
+      var p = particles[i];
+      p.life += dt;
+      p.vy += p.gravity*dt;
+      p.x += p.vx*dt;
+      p.y += p.vy*dt;
+      var lifeRatio = p.life/p.maxLife;
+      if(lifeRatio>=1){
+        p.el.remove();
+        particles.splice(i,1);
+        continue;
+      }
+      p.el.style.transform = 'translate(' + p.x + 'px,' + p.y + 'px)';
+      p.el.style.opacity = String(1-lifeRatio);
+    }
+    if(particles.length>0){ rafId = requestAnimationFrame(particleLoop); }
+    else { rafId = null; lastT = 0; }
+  }
+  function getCss(varName){
+    return getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
+  }
+  function centerOf(el){
+    var r = el.getBoundingClientRect();
+    return { x: r.left + r.width/2, y: r.top + r.height/2 };
+  }
+
+  /* =================== ゲーム進行 =================== */
+  function classify(elapsed, period){
+    var dev = Math.abs(elapsed - period/2);
+    if(dev <= PF*period) return 'perfect';
+    if(dev <= GF*period) return 'good';
+    if(dev <= MF*period) return 'marginal';
+    return 'bad';
+  }
+
+  function makeDomino(quality){
+    var d = document.createElement('div');
+    d.className = 'domino' + (quality ? ' q-'+quality : ' q-good');
+    var underline = document.createElement('i');
+    d.appendChild(underline);
+    dominoRow.appendChild(d);
+    return d;
+  }
+
+  var dominoEls = [];
+
+  function resetGame(){
+    dominoRow.innerHTML = '';
+    dominoEls = [];
+    gapQuality = [];
+    gapIndex = 0;
+    counterNum.textContent = '0';
+    counterLabel.textContent = 'ならべた';
+    resultOverlay.hidden = true;
+    hint.textContent = 'マーカーが まんなかに きたら タップ!';
+    marker.style.transition = 'none';
+    marker.style.left = '0%';
+  }
+
+  function startGame(){
+    resetGame();
+    phase = 'placing';
+    mainBtn.hidden = true;
+    dominoEls.push(makeDomino(null));
+    counterNum.textContent = '1';
+    startRound();
+  }
+
+  function startRound(){
+    if(gapIndex >= GAP_T.length){ finishPlacing(); return; }
+    roundPeriod = GAP_T[gapIndex];
+    roundActive = false; // アニメーションが実際に動き出すまでは判定しない
+    marker.style.transition = 'none';
+    marker.style.left = '0%';
+    // 次のフレームで transition を有効にしてから動かす(即時ジャンプ防止)。
+    // roundStart は「見た目が動き始めた瞬間」に合わせて記録する。
+    requestAnimationFrame(function(){
+      requestAnimationFrame(function(){
+        marker.style.transition = 'left ' + roundPeriod + 'ms linear';
+        marker.style.left = '100%';
+        roundStart = performance.now();
+        roundActive = true;
+        timeoutId = setTimeout(function(){ resolveRound(roundPeriod); }, roundPeriod + 20);
+      });
+    });
+  }
+
+  function resolveRound(elapsedOverride){
+    if(!roundActive) return;
+    roundActive = false;
+    clearTimeout(timeoutId);
+    var elapsed = (elapsedOverride!==undefined) ? elapsedOverride : (performance.now() - roundStart);
+    elapsed = Math.max(0, Math.min(roundPeriod, elapsed));
+    var q = classify(elapsed, roundPeriod);
+    marker.style.transition = 'none';
+    marker.style.left = (100*elapsed/roundPeriod) + '%';
+
+    gapQuality.push(q);
+    var d = makeDomino(q);
+    dominoEls.push(d);
+    counterNum.textContent = String(dominoEls.length);
+    playPlace(q);
+
+    if(q === 'bad'){
+      hint.textContent = 'すきまが おかしい…';
+      spawnParticles(centerOf(d).x, centerOf(d).y, 6, {gravity:false, speed:60});
+    } else if(q === 'perfect'){
+      hint.textContent = 'かんぺき!';
+      spawnParticles(centerOf(d).x, centerOf(d).y, 10, {accent:true, up:true, speed:90});
+    } else {
+      hint.textContent = 'つぎ いくよ';
+      spawnParticles(centerOf(d).x, centerOf(d).y, 6, {up:true, speed:70});
+    }
+
+    gapIndex++;
+    setTimeout(startRound, 260);
+  }
+
+  document.addEventListener('pointerdown', function(){
+    if(phase==='placing' && roundActive){ resolveRound(); }
+  });
+
+  function finishPlacing(){
+    phase = 'waiting';
+    hint.textContent = '10たい ならんだ!';
+    mainBtn.hidden = false;
+    mainBtn.textContent = 'たおす!';
+  }
+
+  function toppleSequence(){
+    phase = 'toppling';
+    mainBtn.hidden = true;
+    hint.textContent = '';
+    counterLabel.textContent = 'たおれた';
+    counterNum.textContent = '0';
+    var i = 0;
+    function step(){
+      var d = dominoEls[i];
+      d.classList.add('down');
+      counterNum.textContent = String(i+1);
+      var c = centerOf(d);
+      spawnParticles(c.x, c.y, 8, {speed:90});
+      playFall(i);
+      if(i < dominoEls.length-1 && gapQuality[i] !== 'bad'){
+        i++;
+        setTimeout(step, 130);
+      } else {
+        var stopped = (i < dominoEls.length-1);
+        setTimeout(function(){ finishTopple(i+1, stopped); }, 380);
+      }
+    }
+    step();
+  }
+
+  function finishTopple(count, stoppedEarly){
+    phase = 'result';
+    var rect = app.getBoundingClientRect();
+    var cx = rect.left + rect.width/2, cy = rect.top + rect.height/2;
+
+    if(count >= TOTAL){
+      bannerEl.textContent = 'パーフェクトれんさ!!';
+      tipEl.textContent = '10このドミノが ぜんぶ たおれた。さいこうの すきま!';
+      playBig();
+      bigEffect(cx, cy);
+    } else if(count >= 6){
+      bannerEl.textContent = 'いいちょうし!';
+      tipEl.textContent = stoppedEarly ? (count) + 'こで とまった。すきまが せまいか ひろいか、どちらか。' : '';
+      smallEffect(cx, cy);
+    } else {
+      bannerEl.textContent = 'とちゅうで とまった';
+      tipEl.textContent = 'はやいラウンドほど、すこし はやめに タップすると まんなかに あわせやすい。';
+      playStop();
+      spawnParticles(cx, cy, 14, {speed:120});
+    }
+    scoreNumEl.textContent = String(count);
+    resultOverlay.hidden = false;
+    mainBtn.hidden = false;
+    mainBtn.textContent = 'もういちど';
+  }
+
+  function smallEffect(cx, cy){
+    spawnParticles(cx, cy, 40, {speed:200, up:true, accent:true});
+    app.classList.add('shake');
+    setTimeout(function(){ app.classList.remove('shake'); }, 360);
+  }
+
+  function bigEffect(cx, cy){
+    var waves = [0,500,1000,1500];
+    waves.forEach(function(t, idx){
+      setTimeout(function(){
+        spawnParticles(cx, cy, 45, {speed:260+idx*30, up:true, accent:true, big:true});
+        if(idx%2===0){ flashScreen(); }
+        app.classList.add('shake');
+        setTimeout(function(){ app.classList.remove('shake'); }, 360);
+      }, t);
+    });
+  }
+
+  function flashScreen(){
+    flash.style.transition = 'none';
+    flash.style.opacity = '0.5';
+    requestAnimationFrame(function(){
+      flash.style.transition = 'opacity .45s ease';
+      flash.style.opacity = '0';
+    });
+  }
+
+  mainBtn.addEventListener('pointerdown', function(e){
+    e.stopPropagation();
+    initAudio();
+    if(actx && actx.state==='suspended') actx.resume();
+    if(phase==='intro' || phase==='result'){ startGame(); }
+    else if(phase==='waiting'){ toppleSequence(); }
+  });
+
+})();
+</script>
+</body>
+</html>
