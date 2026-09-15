@@ -1,0 +1,5 @@
+# macOS の Finder が つくる ひょうじせってい ファイル
+.DS_Store
+
+# Claude に ファイルを わたすと じどうで できる フォルダ
+Claude outputs/
