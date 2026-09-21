@@ -1,0 +1,1057 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>おうさまの しょうたい | Chuppy Games Day 033</title>
+<style>
+:root{
+  --ink:#1a0406;      /* ベース: 夜の王城、ほぼ黒の臙脂 */
+  --paper:#f2e4c4;    /* 文字: 古い羊皮紙 */
+  --fire:#ff3b1f;     /* 差し色: 炎の赤 */
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;background:var(--ink);overflow:hidden}
+body{
+  color:var(--paper);
+  font-family:"Hiragino Maru Gothic ProN","Hiragino Sans","Yu Gothic",system-ui,sans-serif;
+  touch-action:manipulation;user-select:none;-webkit-user-select:none;
+}
+#cv{position:fixed;inset:0;width:100%;height:100%;display:block}
+#snd{
+  position:fixed;right:12px;top:calc(env(safe-area-inset-top,0px) + 12px);z-index:40;
+  width:44px;height:64px;border-radius:10px;border:3px solid var(--paper);
+  background:var(--ink);color:var(--paper);font-size:18px;cursor:pointer;
+}
+
+/* 画面を覆う窓(タイトル・結果) */
+.over{
+  position:fixed;inset:0;z-index:60;display:none;align-items:center;justify-content:center;
+  background:rgba(26,4,6,.86);padding:20px;
+}
+.over.show{display:flex;animation:fadeIn .35s ease-out}
+.over.bright{background:rgba(255,248,232,.25);align-items:flex-end;padding-bottom:calc(env(safe-area-inset-bottom,0px) + 28px)}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+.win{
+  width:100%;max-width:380px;text-align:center;
+  border:4px solid var(--paper);border-radius:6px;outline:3px solid var(--ink);
+  box-shadow:0 0 0 7px var(--paper);
+  background:var(--ink);padding:26px 18px 22px;
+}
+.win .kicker{font-size:13px;letter-spacing:.2em;opacity:.7;margin-bottom:8px}
+.win h1{font-size:28px;white-space:nowrap;line-height:1.2;letter-spacing:.06em;margin-bottom:10px}
+.win h1 em{font-style:normal;color:var(--fire)}
+.win p{font-size:15px;line-height:1.8;margin:6px 0}
+.win .big{font-size:36px;font-weight:bold;color:var(--fire);margin:6px 0 2px;letter-spacing:.04em}
+.win .rank{display:inline-block;margin:10px 0 4px;padding:6px 14px;border:2px solid var(--paper);font-size:16px;font-weight:bold}
+.win .hint{font-size:13px;opacity:.8;margin-top:10px}
+.btn{
+  display:block;width:100%;margin-top:14px;padding:15px 10px;
+  font:inherit;font-size:20px;font-weight:bold;letter-spacing:.1em;
+  color:var(--ink);background:var(--paper);border:0;border-radius:4px;cursor:pointer;
+  box-shadow:0 5px 0 #8c7b5a;
+}
+.btn:active{transform:translateY(5px);box-shadow:none}
+.btn.sub{background:transparent;color:var(--paper);border:3px solid var(--paper);box-shadow:none;font-size:17px}
+.howto{display:flex;align-items:center;justify-content:center;gap:8px;margin:14px 0 4px;font-size:14px}
+.howto i{display:inline-block;width:70px;height:14px;border:2px solid var(--paper);position:relative}
+.howto i::after{content:"";position:absolute;left:44%;width:12%;top:0;bottom:0;background:var(--fire)}
+
+/* 演出(小・大) */
+#flash{position:fixed;inset:0;z-index:50;background:#fff;opacity:0;pointer-events:none}
+#flash.go{animation:flashOut .45s ease-out forwards}
+#flash.red{background:var(--fire)}
+@keyframes flashOut{0%{opacity:.8}100%{opacity:0}}
+#toast{
+  position:fixed;left:50%;top:60%;transform:translateX(-50%);z-index:52;display:none;
+  background:var(--ink);color:var(--paper);border:3px solid var(--paper);
+  padding:9px 20px;font-size:20px;font-weight:bold;white-space:nowrap;letter-spacing:.06em;
+}
+#toast.show{display:block;animation:toastIn 1.4s ease-out forwards}
+@keyframes toastIn{
+  0%{transform:translateX(-50%) scale(.4);opacity:0}
+  16%{transform:translateX(-50%) scale(1.12);opacity:1}
+  28%,80%{transform:translateX(-50%) scale(1);opacity:1}
+  100%{transform:translateX(-50%) translateY(-26px);opacity:0}
+}
+#banner{position:fixed;inset:0;z-index:55;display:none;align-items:center;justify-content:center;pointer-events:none}
+#banner.show{display:flex}
+.bnr{
+  background:var(--fire);color:var(--ink);padding:18px 26px;text-align:center;
+  border:5px solid var(--paper);box-shadow:0 0 0 5px var(--ink),0 0 60px rgba(255,59,31,.8);
+  animation:burstIn .5s cubic-bezier(.2,1.8,.4,1);
+}
+@keyframes burstIn{0%{transform:scale(.3) rotate(-10deg);opacity:0}100%{transform:scale(1) rotate(-3deg);opacity:1}}
+.bnr b{display:block;white-space:nowrap;font-size:30px;line-height:1.15;letter-spacing:.04em}
+.bnr span{display:block;font-size:15px;font-weight:bold;margin-top:6px}
+</style>
+</head>
+<body>
+<canvas id="cv"></canvas>
+<div id="safe" style="position:fixed;top:0;left:0;width:0;padding-top:env(safe-area-inset-top,0px);visibility:hidden"></div>
+<button id="snd" aria-label="おと">🔇</button>
+
+<div id="flash"></div>
+<div id="toast"></div>
+<div id="banner"><div class="bnr"><b id="bnrBig"></b><span id="bnrSmall"></span></div></div>
+
+<!-- タイトル -->
+<div class="over show" id="titleOv">
+  <div class="win">
+    <div class="kicker">CHUPPY GAMES ・ DAY 033</div>
+    <h1>おうさまの<br><em>しょうたい</em></h1>
+    <p>ゆうしゃよ、しろの いちばん おくで<br>おうさまが まっている。</p>
+    <div class="howto"><i></i><span>あかい まんなかで タップ</span></div>
+    <p class="hint">ずれるほど よわい。はずすと よろける</p>
+    <button class="btn" id="startBtn">はじめる</button>
+  </div>
+</div>
+
+<!-- 結果 -->
+<div class="over" id="resultOv">
+  <div class="win">
+    <div class="kicker" id="rKick"></div>
+    <h1 id="rTitle"></h1>
+    <div class="big" id="rBig"></div>
+    <p id="rLine"></p>
+    <div class="rank" id="rRank"></div>
+    <p class="hint" id="rHint"></p>
+    <button class="btn" id="retryBoss">まおうから やりなおす</button>
+    <button class="btn" id="retryAll">もういちど</button>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   数字(モンテカルロで決めた値。変えるとバランスが変わる)
+   ============================================================ */
+const MULT   = {crit:2.2,  hit:1,    graze:0.4, miss:0};
+const COOL   = 0.45;   // こうげき後の すき(秒)
+const STUN   = 1.2;    // はずした時に よろける時間(秒)
+const REVIVE = 0.5;    // 1回だけ たちあがる(HPの5わりで)
+const HERO = [ {hp:100, atk:10}, {hp:120, atk:13}, {hp:140, atk:16} ];
+const FOES = [
+  // Z = あたりの幅(まんなかからのズレ。バーの幅=1)。先へ進むほど 赤が せまく、ゲージが はやく(P が小さく)なる
+  {kind:'slime', name:'スライム',     hp:60,  every:2.6, dmg:7,  P:2.0, Z:{crit:0.10, hit:0.34, graze:0.42}, floor:'しろの もん'},
+  {kind:'skel',  name:'がいこつへい', hp:150, every:2.0, dmg:14, P:1.6, Z:{crit:0.07, hit:0.27, graze:0.33}, floor:'ながい ろうか'},
+  {kind:'demon', name:'まおう',       hp:340, every:1.8, dmg:13, P:1.4, Z:{crit:0.05, hit:0.22, graze:0.29}, floor:'おうのま',
+   p2:{every:1.4, dmg:18, P:1.15}},
+];
+
+/* ズレ d(-0.5〜0.5)から、あたりの種類を決める */
+function judge(d, Z){
+  const a = Math.abs(d);
+  if (a < Z.crit)  return 'crit';
+  if (a < Z.hit)   return 'hit';
+  if (a < Z.graze) return 'graze';
+  return 'miss';
+}
+/* ゲージの位置(0→1→0 を P 秒で1往復) */
+function gaugePos(t, P){
+  const u = (t / P) % 1;
+  return u < 0.5 ? u * 2 : 2 - u * 2;
+}
+
+/* ============================================================
+   画面
+   ============================================================ */
+const cv = document.getElementById('cv');
+const ctx = cv.getContext('2d');
+let W = 0, H = 0, DPR = 1, SAFE = 0;
+function resize(){
+  DPR = Math.min(window.devicePixelRatio || 1, 2);
+  W = window.innerWidth; H = window.innerHeight;
+  cv.width = W * DPR; cv.height = H * DPR;
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  SAFE = parseFloat(getComputedStyle(document.getElementById('safe')).paddingTop) || 0;
+}
+window.addEventListener('resize', resize);
+resize();
+
+const INK = '#1a0406', PAPER = '#f2e4c4', FIRE = '#ff3b1f';
+const INK2 = '#2c0a0d';   // ベースを少し明るくしたもの(影・床)
+
+/* 光の画像を1枚だけ作っておく(毎コマ作ると重い) */
+const glow = document.createElement('canvas');
+glow.width = glow.height = 128;
+(() => {
+  const g = glow.getContext('2d');
+  const gr = g.createRadialGradient(64, 64, 0, 64, 64, 64);
+  gr.addColorStop(0, 'rgba(255,59,31,.9)');
+  gr.addColorStop(1, 'rgba(255,59,31,0)');
+  g.fillStyle = gr; g.fillRect(0, 0, 128, 128);
+})();
+
+/* ============================================================
+   おと(Web Audio。BGMと効果音は別のつまみ)
+   ============================================================ */
+let AC = null, master, bgmG, seG, noiseBuf, muted = true;
+const sndBtn = document.getElementById('snd');
+function initAudio(){
+  if (AC) { if (AC.state === 'suspended') AC.resume(); return; }
+  AC = new (window.AudioContext || window.webkitAudioContext)();
+  master = AC.createGain(); master.gain.value = muted ? 0 : 1; master.connect(AC.destination);
+  bgmG = AC.createGain(); bgmG.gain.value = 0.30; bgmG.connect(master);
+  seG  = AC.createGain(); seG.gain.value  = 0.9;  seG.connect(master);
+  noiseBuf = AC.createBuffer(1, AC.sampleRate * 0.5, AC.sampleRate);
+  const ch = noiseBuf.getChannelData(0);
+  for (let i = 0; i < ch.length; i++) ch[i] = Math.random() * 2 - 1;
+}
+sndBtn.addEventListener('pointerdown', e => {
+  e.stopPropagation();
+  muted = !muted;
+  sndBtn.textContent = muted ? '🔇' : '🔊';
+  initAudio();
+  master.gain.value = muted ? 0 : 1;
+  if (!muted) playBgm(bgmFor());
+});
+const mtof = m => 440 * Math.pow(2, (m - 69) / 12);
+function tone(f, dur, type, vol, when, dest, f2){
+  if (!AC) return;
+  const t = when || AC.currentTime;
+  const o = AC.createOscillator(), g = AC.createGain();
+  o.type = type; o.frequency.setValueAtTime(f, t);
+  if (f2) o.frequency.exponentialRampToValueAtTime(f2, t + dur);
+  g.gain.setValueAtTime(vol, t);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  o.connect(g); g.connect(dest || seG);
+  o.start(t); o.stop(t + dur + 0.02);
+}
+function noise(dur, vol, hp){
+  if (!AC) return;
+  const t = AC.currentTime;
+  const s = AC.createBufferSource(); s.buffer = noiseBuf;
+  const f = AC.createBiquadFilter(); f.type = 'highpass'; f.frequency.value = hp || 1000;
+  const g = AC.createGain(); g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  s.connect(f); f.connect(g); g.connect(seG); s.start(t); s.stop(t + dur);
+}
+const SE = {
+  slash(){ noise(0.12, 0.5, 2500); tone(900, 0.1, 'square', 0.12, 0, 0, 300); },
+  crit(){ noise(0.2, 0.7, 1800); tone(1320, 0.08, 'square', 0.18); tone(1760, 0.18, 'square', 0.16, AC && AC.currentTime + 0.07); },
+  miss(){ tone(300, 0.18, 'triangle', 0.25, 0, 0, 150); },
+  hurt(){ noise(0.18, 0.6, 200); tone(110, 0.25, 'square', 0.28, 0, 0, 55); },
+  warn(){ tone(1200, 0.06, 'square', 0.08); },
+  down(){ for (let i = 0; i < 6; i++) tone(600 - i * 70, 0.09, 'square', 0.14, AC && AC.currentTime + i * 0.06); },
+  lvup(){ [72, 76, 79, 84].forEach((m, i) => tone(mtof(m), 0.16, 'square', 0.14, AC && AC.currentTime + i * 0.09)); },
+  talk(){ tone(880, 0.04, 'square', 0.06); },
+  door(){ noise(1.1, 0.25, 300); tone(90, 1.0, 'triangle', 0.2, 0, 0, 180); },
+  rumble(){ noise(0.9, 0.5, 60); tone(55, 0.9, 'sawtooth', 0.25, 0, 0, 38); },
+  revive(){ [60, 64, 67, 72, 76].forEach((m, i) => tone(mtof(m), 0.25, 'triangle', 0.2, AC && AC.currentTime + i * 0.08)); },
+  fanfare(){
+    if (!AC) return;
+    const t = AC.currentTime;
+    [[67,0],[67,.15],[67,.3],[72,.45],[76,.9],[79,1.2],[84,1.5]].forEach(([m, d]) => {
+      tone(mtof(m), 0.4, 'square', 0.16, t + d); tone(mtof(m - 12), 0.4, 'triangle', 0.2, t + d);
+    });
+  },
+};
+/* BGM:16こまの ならびを くりかえす */
+const SONGS = {
+  field:{bpm:138, type:'square',
+    lead:[69,0,72,0,76,0,74,72, 71,0,74,0,77,76,74,71],
+    bass:[45,45,57,45,45,45,57,45, 43,43,55,43,44,44,56,44]},
+  king:{bpm:92, type:'triangle',
+    lead:[72,0,76,0,79,0,76,0, 77,0,74,0,72,0,0,0],
+    bass:[48,0,0,0,55,0,0,0, 53,0,0,0,48,0,0,0]},
+  dawn:{bpm:112, type:'triangle',
+    lead:[72,76,79,84, 83,79,76,79, 77,81,84,81, 79,0,0,0],
+    bass:[48,0,55,0, 52,0,55,0, 53,0,57,0, 55,0,43,0]},
+  boss:{bpm:168, type:'square',
+    lead:[69,70,69,68, 69,0,76,0, 74,73,74,72, 71,0,68,0],
+    bass:[33,33,45,33,33,33,45,33, 32,32,44,32,34,34,46,34]},
+};
+let bgmName = null, bgmTimer = null, bgmStep = 0, bgmNext = 0, bgmFast = 1;
+function playBgm(name){
+  if (!AC || muted || !name) { stopBgm(); bgmName = name; return; }
+  if (bgmName === name && bgmTimer) return;
+  stopBgm(); bgmName = name; bgmStep = 0; bgmNext = AC.currentTime + 0.05;
+  bgmTimer = setInterval(() => {
+    const s = SONGS[bgmName]; if (!s) return;
+    const step = 60 / s.bpm / 2 / bgmFast;
+    while (bgmNext < AC.currentTime + 0.15) {
+      const i = bgmStep % 16;
+      if (s.lead[i]) tone(mtof(s.lead[i]), step * 0.9, s.type, 0.10, bgmNext, bgmG);
+      if (s.bass[i]) tone(mtof(s.bass[i]), step * 0.8, 'triangle', 0.22, bgmNext, bgmG);
+      bgmNext += step; bgmStep++;
+    }
+  }, 50);
+}
+function stopBgm(){ if (bgmTimer) clearInterval(bgmTimer); bgmTimer = null; }
+function pauseAll(){ stopBgm(); if (AC && AC.state === 'running') AC.suspend(); }
+document.addEventListener('visibilitychange', () => { if (document.hidden) pauseAll(); });
+window.addEventListener('pagehide', pauseAll);
+window.addEventListener('blur', pauseAll);
+
+/* ============================================================
+   状態
+   ============================================================ */
+let phase = 'title';   // title / intro / battle / foeDown / levelup / talk / reveal / revive / outro / lose
+let phaseT = 0;        // いまの場面に入ってからの秒数
+let stage = 0;         // 0,1,2 = どの敵か
+let hero, foe;
+let gaugeT = 0, cool = 0, stun = 0, nextE = 0, warned = false;
+let reviveLeft = 1, crits = 0, playT = 0, revived = false;
+let msg = '', talkIdx = 0;
+let shakeAmt = 0, hurtFlash = 0, foeFlash = 0, lunge = 0;
+let parts = [], nums = [], slashes = [], embers = [], petals = [];
+
+function setPhase(p){ phase = p; phaseT = 0; }
+function bgmFor(){
+  if (phase === 'title' || phase === 'result' || phase === 'lose') return null;
+  if (phase === 'outro') return 'dawn';
+  if (stage < 2) return 'field';
+  if (phase === 'talk') return 'king';
+  if (phase === 'reveal' && phaseT < 2.4) return null;
+  return 'boss';
+}
+
+function newGame(fromBoss){
+  stage = fromBoss ? 2 : 0;
+  reviveLeft = 1; revived = false; crits = 0; playT = 0;
+  parts = []; nums = []; slashes = []; petals = [];
+  resultOv.classList.remove('bright');
+  startStage();
+}
+function startStage(){
+  hero = {lv: stage + 1, max: HERO[stage].hp, hp: HERO[stage].hp, atk: HERO[stage].atk};
+  const F = FOES[stage];
+  foe = {kind: F.kind, name: F.name, max: F.hp, hp: F.hp, p2: false, alpha: 1, dead: 0};
+  gaugeT = 0; cool = 0; stun = 0; warned = false;
+  bgmFast = 1;
+  if (stage === 2) {
+    foe.kind = 'king'; foe.name = 'おうさま';
+    talkIdx = 0; msg = TALK[0]; setPhase('talk');
+  } else {
+    msg = F.name + 'が あらわれた!'; setPhase('intro');
+  }
+  playBgm(bgmFor());
+}
+const TALK = [
+  'おうさま「おお ゆうしゃよ! よくぞ まいった」',
+  'おうさま「ほうびを とらせよう。 それはな…」',
+  'おうさま「おまえの いのち じゃあ!!」',
+];
+
+/* ============================================================
+   タップ
+   ============================================================ */
+window.addEventListener('pointerdown', e => {
+  const tg = e.target;
+  if (tg && tg.closest && (tg.closest('.over') || tg === sndBtn)) return;
+  initAudio();
+  if (!muted && !bgmTimer) playBgm(bgmFor());
+  if (phase === 'battle') attack();
+  else if (phase === 'talk') {
+    SE.talk();
+    talkIdx++;
+    if (talkIdx < TALK.length) msg = TALK[talkIdx];
+    else startReveal();
+  }
+});
+
+function attack(){
+  if (cool > 0 || stun > 0) return;
+  const F = curF();
+  const d = gaugePos(gaugeT, F.P) - 0.5;
+  const kind = judge(d, F.Z);
+  cool = COOL;
+  const cx = W / 2, cy = foeY();
+  if (kind === 'miss') {
+    stun = STUN; SE.miss();
+    msg = 'すかっ! ゆうしゃは よろけた';
+    nums.push({x: cx, y: cy - 40, t: 0, text: 'ミス', col: PAPER, size: 26});
+    return;
+  }
+  const dmg = Math.max(1, Math.round(hero.atk * MULT[kind] * (0.9 + Math.random() * 0.2)));
+  foe.hp = Math.max(0, foe.hp - dmg);
+  foeFlash = 1;
+  slashes.push({t: 0, crit: kind === 'crit'});
+  if (kind === 'crit') {
+    crits++; SE.crit();
+    shakeAmt = Math.max(shakeAmt, 9);
+    burstAt(cx, cy, 36, true);
+    nums.push({x: cx, y: cy - 60, t: 0, text: dmg, col: FIRE, size: 54, label: 'かいしん!'});
+    msg = 'かいしんの いちげき! ' + dmg + 'の ダメージ';
+  } else {
+    SE.slash();
+    burstAt(cx, cy, kind === 'hit' ? 12 : 5, false);
+    nums.push({x: cx + (Math.random() - 0.5) * 40, y: cy - 40, t: 0, text: dmg, col: PAPER, size: kind === 'hit' ? 36 : 24});
+    msg = foe.name + 'に ' + dmg + 'の ダメージ';
+  }
+  const F0 = FOES[stage];
+  if (F0.p2 && !foe.p2 && foe.hp > 0 && foe.hp <= foe.max / 2) {
+    foe.p2 = true; bgmFast = 1.25;
+    shakeAmt = 14; doFlash(true);
+    showToast('まおうが ほんきを だした!');
+    msg = 'まおうが ほんきを だした!';
+  }
+  if (foe.hp <= 0) foeDefeated();
+}
+function curF(){ const F = FOES[stage]; return (foe && foe.p2) ? {...F, ...F.p2} : F; }
+
+/* ============================================================
+   場面の切りかえ
+   ============================================================ */
+function foeDefeated(){
+  SE.down();
+  setPhase('foeDown');
+  if (stage < 2) {
+    msg = foe.name + 'を たおした!';
+    // 小演出
+    burstAt(W / 2, foeY(), 48, true);
+    shakeAmt = Math.max(shakeAmt, 8);
+    showToast(foe.name + 'を たおした!');
+  } else {
+    msg = 'まおうを たおした!';
+    bigCelebrate();
+  }
+}
+function startReveal(){
+  setPhase('reveal');
+  msg = '……!?';
+  stopBgm(); SE.rumble();
+}
+function heroDown(){
+  if (reviveLeft > 0) {
+    reviveLeft--; revived = true;
+    hero.hp = Math.round(hero.max * REVIVE);
+    setPhase('revive'); SE.revive();
+    msg = 'ゆうしゃは ちからを ふりしぼった!';
+    showToast('ゆうしゃは たちあがった!');
+    for (let i = 0; i < 40; i++) parts.push(mkPart(W / 2 + (Math.random() - 0.5) * W, H * 0.2 + Math.random() * 30, (Math.random() - 0.5) * 60, 60 + Math.random() * 160, true));
+    return;
+  }
+  setPhase('lose'); stopBgm();
+  setTimeout(showLose, 900);
+}
+
+/* ============================================================
+   演出エンジン
+   ============================================================ */
+const flashEl = document.getElementById('flash');
+const toastEl = document.getElementById('toast');
+const bannerEl = document.getElementById('banner');
+function doFlash(red){
+  flashEl.classList.toggle('red', !!red);
+  flashEl.classList.remove('go'); void flashEl.offsetWidth; flashEl.classList.add('go');
+}
+function showToast(t){
+  toastEl.textContent = t;
+  toastEl.classList.remove('show'); void toastEl.offsetWidth; toastEl.classList.add('show');
+}
+function mkPart(x, y, vx, vy, red){
+  return {x, y, vx, vy, life: 0, max: 0.9 + Math.random() * 0.9, s: 3 + Math.random() * 6, red, rot: Math.random() * 6};
+}
+function burstAt(x, y, n, red){
+  for (let i = 0; i < n; i++) {
+    const a = Math.random() * Math.PI * 2, sp = 120 + Math.random() * 380;
+    parts.push(mkPart(x, y, Math.cos(a) * sp, Math.sin(a) * sp - 120, red && Math.random() < 0.7));
+  }
+}
+function fountain(n){
+  for (let i = 0; i < n; i++) {
+    const left = i % 2 === 0;
+    parts.push(mkPart(left ? W * 0.05 : W * 0.95, H + 10,
+      (left ? 1 : -1) * (40 + Math.random() * 260), -(500 + Math.random() * 520), Math.random() < 0.65));
+  }
+}
+/* 大演出:0.5秒ごとに4波 */
+function bigCelebrate(){
+  const waves = [
+    () => { doFlash(false); shakeAmt = 18; burstAt(W / 2, foeY(), 70, true); },
+    () => { fountain(60); shakeAmt = 14; },
+    () => { doFlash(true); shakeAmt = 16; burstAt(W / 2, foeY(), 60, true); SE.fanfare();
+            document.getElementById('bnrBig').textContent = 'まおうを たおした!';
+            document.getElementById('bnrSmall').textContent = 'へいわが もどった';
+            bannerEl.classList.add('show'); },
+    () => { fountain(70); },
+  ];
+  waves.forEach((w, i) => setTimeout(w, i * 500));
+  setTimeout(() => bannerEl.classList.remove('show'), 3300);
+}
+
+/* ============================================================
+   結果
+   ============================================================ */
+const resultOv = document.getElementById('resultOv');
+function showResult(){
+  document.getElementById('rKick').textContent = 'ゲームクリア';
+  document.getElementById('rTitle').textContent = 'へいわが もどった';
+  document.getElementById('rBig').textContent = playT.toFixed(1) + 'びょう';
+  document.getElementById('rLine').textContent = 'かいしんの いちげき ' + crits + 'かい';
+  document.getElementById('rRank').textContent = revived ? 'しょうごう:ねばりの ゆうしゃ' : 'しょうごう:でんせつの ゆうしゃ';
+  document.getElementById('rHint').textContent = revived ? 'いちども たおれずに かつと しょうごうが かわる' : 'いちども たおれずに まおうを たおした!';
+  document.getElementById('retryBoss').style.display = 'none';
+  resultOv.classList.add('bright');
+  resultOv.classList.add('show');
+}
+function showLose(){
+  document.getElementById('rKick').textContent = 'ゲームオーバー';
+  document.getElementById('rTitle').textContent = 'ゆうしゃは たおれた…';
+  const pct = Math.ceil(foe.hp / foe.max * 100);
+  document.getElementById('rBig').textContent = 'のこり ' + pct + '%';
+  document.getElementById('rLine').textContent = foe.name + 'の HP ・ かいしん ' + crits + 'かい';
+  document.getElementById('rRank').textContent = stage === 2 ? 'あと すこし!' : 'まだ しろの とちゅう';
+  document.getElementById('rHint').textContent = 'あせって れんだ すると はずして よろける。あかい まんなかを まって タップ';
+  document.getElementById('retryBoss').style.display = stage === 2 ? 'block' : 'none';
+  resultOv.classList.add('show');
+}
+document.getElementById('startBtn').addEventListener('click', () => {
+  initAudio();
+  document.getElementById('titleOv').classList.remove('show');
+  newGame(false);
+});
+document.getElementById('retryAll').addEventListener('click', () => { initAudio(); resultOv.classList.remove('show'); newGame(false); });
+document.getElementById('retryBoss').addEventListener('click', () => { initAudio(); resultOv.classList.remove('show'); newGame(true); });
+
+/* ============================================================
+   毎コマの更新
+   ============================================================ */
+function foeY(){ return H * 0.48; }
+function foeScale(){ return Math.min(W / 400, H / 760) * 1.05; }
+
+function update(dt){
+  phaseT += dt;
+  if (phase !== 'title' && phase !== 'result' && phase !== 'lose' && phase !== 'outro' && !(phase === 'foeDown' && stage === 2)) playT += dt;
+
+  if (phase === 'intro' && phaseT > 1.1) { setPhase('battle'); nextE = FOES[stage].every * (0.85 + Math.random() * 0.3); msg = 'あかい まんなかで タップ!'; }
+
+  if (phase === 'battle') {
+    const F = curF();
+    gaugeT += dt;
+    cool = Math.max(0, cool - dt);
+    stun = Math.max(0, stun - dt);
+    nextE -= dt;
+    if (nextE < 0.5 && !warned) { warned = true; SE.warn(); }
+    if (nextE <= 0) {
+      const dmg = Math.max(1, Math.round(F.dmg * (0.6 + Math.random() * 0.8)));
+      hero.hp = Math.max(0, hero.hp - dmg);
+      SE.hurt(); shakeAmt = Math.max(shakeAmt, 12); hurtFlash = 1; lunge = 1;
+      nums.push({x: W * 0.72, y: 40 + SAFE + 30, t: 0, text: '-' + dmg, col: FIRE, size: 30});
+      msg = foe.name + 'の こうげき! ' + dmg + 'の ダメージ';
+      nextE = F.every * (0.85 + Math.random() * 0.3); warned = false;
+      if (hero.hp <= 0) heroDown();
+    }
+  }
+
+  if (phase === 'revive' && phaseT > 1.4) { setPhase('battle'); msg = 'あかい まんなかで タップ!'; }
+
+  if (phase === 'foeDown') {
+    foe.dead = Math.min(1, phaseT / 1.2);
+    if (stage < 2 && phaseT > 1.6) {
+      stage++;
+      showToast('レベルが あがった! HP ぜんかい'); SE.lvup();
+      setPhase('levelup'); msg = 'レベル' + (stage + 1) + 'に なった! でも あかい はばが せまくなる…';
+    }
+    if (stage === 2 && phaseT > 3.8) { setPhase('outro'); msg = 'ゆうしゃは とびらを あけた…'; SE.door(); stopBgm(); }
+  }
+  if (phase === 'levelup' && phaseT > 1.5) startStage();
+  if (phase === 'outro') {
+    if (phaseT > 1.3 && phaseT - dt <= 1.3) { msg = 'そとは すっかり あかるい あさ だった'; playBgm('dawn'); }
+    if (Math.random() < 12 * dt && phaseT > 1.3) petals.push({x: Math.random() * W, y: -10, vx: -20 + Math.random() * 40, vy: 40 + Math.random() * 50, s: 3 + Math.random() * 4, w: Math.random() * 6});
+    for (const q of petals) { q.x += (q.vx + Math.sin(q.w) * 30) * dt; q.y += q.vy * dt; q.w += dt * 3; }
+    petals = petals.filter(q => q.y < H + 10);
+    if (phaseT > 5.0 && !resultOv.classList.contains('show')) showResult();
+  }
+
+  if (phase === 'reveal') {
+    const r = phaseT;
+    shakeAmt = Math.max(shakeAmt, Math.min(16, r * 7));
+    if ((r > 0.8 && r - dt <= 0.8) || (r > 1.5 && r - dt <= 1.5) || (r > 2.1 && r - dt <= 2.1)) doFlash(true);
+    if (r > 2.4 && r - dt <= 2.4) {
+      foe.kind = 'demon'; foe.name = 'まおう';
+      doFlash(false); shakeAmt = 22; burstAt(W / 2, foeY(), 80, true); fountain(40);
+      showToast('しょうたいは まおう だった!');
+      msg = 'おうさまの しょうたいは まおう だった!';
+      playBgm('boss');
+    }
+    if (r > 4.0) { setPhase('battle'); nextE = FOES[2].every * (0.85 + Math.random() * 0.3); msg = 'あかい まんなかで タップ!'; }
+  }
+
+  // 粒
+  for (const p of parts) { p.life += dt; p.vy += 700 * dt; p.x += p.vx * dt; p.y += p.vy * dt; p.rot += dt * 6; }
+  parts = parts.filter(p => p.life < p.max && p.y < H + 40);
+  if (parts.length > 500) parts.splice(0, parts.length - 500);
+  for (const n of nums) n.t += dt;
+  nums = nums.filter(n => n.t < 1);
+  for (const s of slashes) s.t += dt;
+  slashes = slashes.filter(s => s.t < 0.28);
+
+  // 火の粉(背景)。まおう戦で増える
+  const rate = stage === 2 && (foe && foe.kind === 'demon') ? (foe.p2 ? 70 : 40) : 12;
+  if (Math.random() < rate * dt) embers.push({x: Math.random() * W, y: H + 5, vy: -(30 + Math.random() * 70), s: 1.5 + Math.random() * 3, w: Math.random() * 6, a: 0.3 + Math.random() * 0.6});
+  for (const e of embers) { e.y += e.vy * dt; e.w += dt * 2; }
+  embers = embers.filter(e => e.y > -10);
+
+  shakeAmt *= Math.pow(0.02, dt);
+  hurtFlash = Math.max(0, hurtFlash - dt * 2.5);
+  foeFlash = Math.max(0, foeFlash - dt * 5);
+  lunge = Math.max(0, lunge - dt * 4);
+}
+
+/* ============================================================
+   描画
+   ============================================================ */
+function draw(){
+  ctx.save();
+  ctx.fillStyle = INK; ctx.fillRect(0, 0, W, H);
+  if (shakeAmt > 0.3) ctx.translate((Math.random() - 0.5) * shakeAmt, (Math.random() - 0.5) * shakeAmt);
+
+  drawRoom();
+  for (const e of embers) {
+    ctx.globalAlpha = e.a;
+    ctx.fillStyle = FIRE;
+    ctx.fillRect(e.x + Math.sin(e.w) * 8, e.y, e.s, e.s);
+  }
+  ctx.globalAlpha = 1;
+
+  if (foe && phase !== 'title' && phase !== 'outro') drawFoeLayer();
+
+  for (const s of slashes) drawSlash(s);
+
+  for (const p of parts) {
+    const k = 1 - p.life / p.max;
+    ctx.globalAlpha = Math.min(1, k * 1.6);
+    ctx.fillStyle = p.red ? FIRE : PAPER;
+    ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot);
+    ctx.fillRect(-p.s / 2, -p.s / 2, p.s, p.s);
+    ctx.restore();
+  }
+  ctx.globalAlpha = 1;
+
+  for (const n of nums) {
+    const k = n.t;
+    ctx.globalAlpha = k < 0.7 ? 1 : 1 - (k - 0.7) / 0.3;
+    ctx.fillStyle = n.col;
+    ctx.textAlign = 'center';
+    const pop = k < 0.12 ? 0.6 + k / 0.12 * 0.6 : 1.2 - Math.min(0.2, (k - 0.12));
+    ctx.font = 'bold ' + Math.round(n.size * pop) + 'px sans-serif';
+    ctx.lineWidth = 6; ctx.strokeStyle = INK;
+    const y = n.y - k * 50;
+    ctx.strokeText(n.text, n.x, y); ctx.fillText(n.text, n.x, y);
+    if (n.label) {
+      ctx.font = 'bold 22px sans-serif';
+      ctx.strokeText(n.label, n.x, y - n.size * 0.9); ctx.fillText(n.label, n.x, y - n.size * 0.9);
+    }
+  }
+  ctx.globalAlpha = 1;
+
+  if (phase === 'outro') drawOutro();
+  if (phase !== 'title' && hero) { if (phase !== 'outro') drawStatus(); drawMsg(); if (phase === 'battle' || phase === 'intro' || phase === 'revive') drawGauge(); }
+
+  // やられた時・ピンチの赤いふち
+  const pinch = hero && phase === 'battle' && hero.hp <= hero.max * 0.3 ? 0.35 + Math.sin(performance.now() / 150) * 0.15 : 0;
+  const red = Math.max(hurtFlash * 0.8, pinch);
+  if (red > 0.01) {
+    const g = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.3, W / 2, H / 2, Math.max(W, H) * 0.75);
+    g.addColorStop(0, 'rgba(255,59,31,0)');
+    g.addColorStop(1, 'rgba(255,59,31,' + red + ')');
+    ctx.fillStyle = g; ctx.fillRect(-20, -20, W + 40, H + 40);
+  }
+  ctx.restore();
+}
+
+function drawRoom(){
+  const hor = H * 0.62;
+  // 床(赤いじゅうたんが奥へ)
+  ctx.fillStyle = INK2;
+  ctx.fillRect(0, hor, W, H - hor);
+  ctx.fillStyle = 'rgba(255,59,31,.16)';
+  ctx.beginPath();
+  ctx.moveTo(W * 0.42, hor); ctx.lineTo(W * 0.58, hor);
+  ctx.lineTo(W * 0.9, H); ctx.lineTo(W * 0.1, H); ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = 'rgba(242,228,196,.08)'; ctx.lineWidth = 1;
+  for (let i = 1; i < 7; i++) {
+    const y = hor + (H - hor) * Math.pow(i / 7, 1.8);
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
+  }
+  // 柱
+  const cols = [0.06, 0.24, 0.76, 0.94];
+  cols.forEach((c, i) => {
+    const near = i === 0 || i === 3;
+    const w = near ? W * 0.1 : W * 0.06;
+    const top = near ? H * 0.08 : H * 0.18;
+    ctx.fillStyle = near ? '#12030a' : '#220709';
+    ctx.fillRect(W * c - w / 2, top, w, hor - top + (near ? 40 : 6));
+    ctx.fillStyle = 'rgba(242,228,196,.07)';
+    ctx.fillRect(W * c - w / 2, top, w, 6);
+  });
+  // たいまつ
+  [0.24, 0.76].forEach(c => {
+    const x = W * c, y = H * 0.32;
+    const f = 1 + Math.sin(performance.now() / 90 + c * 10) * 0.12;
+    ctx.globalAlpha = 0.55;
+    ctx.drawImage(glow, x - 50 * f, y - 58 * f, 100 * f, 100 * f);
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = FIRE;
+    ctx.beginPath(); ctx.moveTo(x - 6, y); ctx.quadraticCurveTo(x, y - 22 * f, x + 6, y); ctx.fill();
+    ctx.fillStyle = PAPER; ctx.fillRect(x - 3, y, 6, 14);
+  });
+  // おうのまだけ玉座
+  if (stage === 2 && phase !== 'title') {
+    const x = W / 2, y = foeY(), s = foeScale();
+    ctx.save(); ctx.translate(x, y); ctx.scale(s, s);
+    ctx.fillStyle = '#12030a';
+    ctx.strokeStyle = 'rgba(242,228,196,.35)'; ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.moveTo(-95, 150); ctx.lineTo(-95, -120); ctx.lineTo(-60, -170); ctx.lineTo(0, -195);
+    ctx.lineTo(60, -170); ctx.lineTo(95, -120); ctx.lineTo(95, 150); ctx.closePath();
+    ctx.fill(); ctx.stroke();
+    ctx.restore();
+  }
+}
+
+/* さいご:とびらが ひらいて、明るい外へ */
+function drawOutro(){
+  const t = phaseT;
+  const open = Math.min(1, t / 1.2);            // とびらの ひらき具合
+  const out = Math.min(1, Math.max(0, (t - 1.0) / 0.8));  // 外の景色が 見えてくる
+  if (out < 1) {
+    // 奥の とびら から 光が あふれる
+    const e = open * open;
+    const dw = W * 0.18 + (W * 1.2) * e, dh = H * 0.3 + H * 0.9 * e;
+    ctx.globalAlpha = 0.35 + 0.65 * open;
+    ctx.drawImage(glow, W / 2 - dw, H * 0.45 - dh, dw * 2, dh * 2);
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = '#fff8e8';
+    const top = H * 0.62 - dh * 0.8, r = dw / 2;
+    ctx.beginPath(); ctx.moveTo(W / 2 - r, top + dh); ctx.lineTo(W / 2 - r, top + r); ctx.arc(W / 2, top + r, r, Math.PI, 0); ctx.lineTo(W / 2 + r, top + dh); ctx.closePath(); ctx.fill();
+  }
+  if (out <= 0) return;
+  ctx.save();
+  ctx.globalAlpha = out;
+  const hor = H * 0.6;
+  // 空
+  const sky = ctx.createLinearGradient(0, 0, 0, hor);
+  sky.addColorStop(0, '#fff8e8'); sky.addColorStop(1, PAPER);
+  ctx.fillStyle = sky; ctx.fillRect(-20, -20, W + 40, hor + 20);
+  // 朝日
+  const rise = Math.min(1, (t - 1.0) / 3);
+  const sx = W * 0.7, sy = hor - 30 - rise * H * 0.22;
+  ctx.globalAlpha = out * 0.8;
+  ctx.drawImage(glow, sx - 120, sy - 120, 240, 240);
+  ctx.globalAlpha = out;
+  ctx.fillStyle = FIRE; ctx.beginPath(); ctx.arc(sx, sy, 34, 0, 7); ctx.fill();
+  // 遠くの しろ(出てきた場所)
+  ctx.fillStyle = 'rgba(26,4,6,.35)';
+  const cx0 = W * 0.2, cw = W * 0.34;
+  ctx.fillRect(cx0 - cw / 2, hor - 70, cw, 70);
+  [[-0.5, 110], [-0.12, 140], [0.28, 100], [0.5, 120]].forEach(([dx, hh]) => {
+    const x = cx0 + dx * cw;
+    ctx.fillRect(x - 11, hor - hh, 22, hh);
+    ctx.beginPath(); ctx.moveTo(x - 15, hor - hh); ctx.lineTo(x, hor - hh - 22); ctx.lineTo(x + 15, hor - hh); ctx.fill();
+  });
+  // とり
+  ctx.strokeStyle = 'rgba(26,4,6,.6)'; ctx.lineWidth = 2;
+  for (let i = 0; i < 3; i++) {
+    const bx = ((t * 40 + i * 70) % (W + 80)) - 40, by = H * (0.16 + i * 0.05), f = Math.sin(t * 8 + i) * 4;
+    ctx.beginPath(); ctx.moveTo(bx - 8, by - f); ctx.lineTo(bx, by); ctx.lineTo(bx + 8, by - f); ctx.stroke();
+  }
+  // 草原と 道
+  ctx.fillStyle = INK;
+  ctx.beginPath(); ctx.moveTo(-20, hor + 10);
+  ctx.quadraticCurveTo(W * 0.3, hor - 18, W * 0.6, hor + 4);
+  ctx.quadraticCurveTo(W * 0.85, hor + 16, W + 20, hor - 6);
+  ctx.lineTo(W + 20, H + 20); ctx.lineTo(-20, H + 20); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = 'rgba(242,228,196,.22)';
+  ctx.beginPath(); ctx.moveTo(W * 0.47, hor + 2); ctx.lineTo(W * 0.53, hor + 2); ctx.lineTo(W * 0.8, H + 20); ctx.lineTo(W * 0.2, H + 20); ctx.closePath(); ctx.fill();
+  // 花びら
+  for (const q of petals) { ctx.fillStyle = FIRE; ctx.fillRect(q.x, q.y, q.s, q.s * 0.7); }
+  // ゆうしゃ(うしろすがた。剣を かかげて 歩いていく)
+  const walk = Math.min(1, Math.max(0, (t - 1.3) / 3));
+  const hx = W / 2, hy = H * 0.86 - walk * H * 0.12, hs = (1 - walk * 0.45) * Math.min(W / 400, 1.1);
+  ctx.save(); ctx.translate(hx, hy + Math.abs(Math.sin(t * 6)) * -3); ctx.scale(hs, hs);
+  ctx.fillStyle = FIRE;                                   // マント
+  ctx.beginPath(); ctx.moveTo(-18, -60); ctx.lineTo(18, -60); ctx.lineTo(26, 0); ctx.lineTo(-26, 0); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = PAPER;
+  ctx.beginPath(); ctx.arc(0, -72, 14, 0, 7); ctx.fill();  // あたま
+  ctx.fillRect(-12, 0, 8, 22); ctx.fillRect(4, 0, 8, 22);  // あし
+  ctx.strokeStyle = PAPER; ctx.lineWidth = 7; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(16, -54); ctx.lineTo(30, -84); ctx.stroke();   // うで
+  ctx.lineWidth = 5; ctx.beginPath(); ctx.moveTo(30, -84); ctx.lineTo(38, -140); ctx.stroke();  // けん
+  ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(22, -90); ctx.lineTo(40, -86); ctx.stroke();
+  ctx.restore();
+  ctx.restore();
+}
+
+function drawFoeLayer(){
+  const x = W / 2, s = foeScale();
+  let y = foeY();
+  const t = performance.now() / 1000;
+  ctx.save();
+  let a = 1 - foe.dead;
+  // 倒れた:赤くなって、沈んで、消える(色・位置・透明度)
+  y += foe.dead * 60;
+  ctx.globalAlpha = Math.max(0, a);
+  let sc = s * (1 + lunge * 0.14);
+  if (phase === 'battle' && nextE < 0.5) sc *= 1 + (0.5 - nextE) * 0.12;   // こうげきの まえぶれ
+  if (foe.kind === 'demon') sc *= 1.02;
+  if (phase === 'reveal') {
+    // おうさま ⇄ まおう がチラチラ入れかわる
+    const r = phaseT;
+    if (r < 2.4) {
+      const flick = Math.random() < Math.min(0.9, r / 2.4);
+      const kind = flick ? 'demon' : 'king';
+      ctx.translate(x + (Math.random() - 0.5) * r * 6, y);
+      ctx.scale(sc * (kind === 'demon' ? 1.02 : 1), sc * (kind === 'demon' ? 1.02 : 1));
+      ctx.globalAlpha = 0.6 + Math.random() * 0.4;
+      ctx.drawImage(glow, -160, -200, 320, 320);
+      ctx.globalAlpha = 1;
+      drawFoe(kind, t, 0);
+      ctx.restore();
+      return;
+    }
+  }
+  ctx.translate(x, y); ctx.scale(sc, sc);
+  if (foe.kind === 'demon' || foe.dead > 0) {
+    ctx.globalAlpha = Math.max(0, a) * (0.5 + (foe.p2 ? 0.4 : 0.15) + Math.sin(t * 5) * 0.1);
+    ctx.drawImage(glow, -190, -230, 380, 380);
+    ctx.globalAlpha = Math.max(0, a);
+  }
+  const red = foe.dead > 0 ? 1 : foeFlash;
+  drawFoe(foe.kind, t, red);
+  ctx.restore();
+
+  // 敵のHPバー
+  if ((phase === 'battle' || phase === 'intro' || phase === 'revive') && foe.kind !== 'king') {
+    const bw = Math.min(260, W * 0.62), bx = x - bw / 2, by = 106 + SAFE;
+    ctx.fillStyle = PAPER; ctx.font = 'bold 15px sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText(foe.name, x, by - 8);
+    ctx.fillStyle = INK; ctx.fillRect(bx, by, bw, 12);
+    ctx.fillStyle = FIRE; ctx.fillRect(bx + 2, by + 2, (bw - 4) * foe.hp / foe.max, 8);
+    ctx.strokeStyle = PAPER; ctx.lineWidth = 2; ctx.strokeRect(bx, by, bw, 12);
+    if (FOES[stage].p2) { ctx.fillStyle = PAPER; ctx.fillRect(x - 1, by - 3, 2, 18); }
+  }
+}
+
+/* 敵の絵。原点が体の中心、およそ -120〜120 の広さ */
+function drawFoe(kind, t, red){
+  const line = red > 0.5 ? FIRE : PAPER;
+  const fill = red > 0.5 ? '#4a0d10' : INK2;
+  ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+  if (kind === 'slime') {
+    const sq = Math.sin(t * 4) * 0.06;
+    ctx.scale(1 + sq, 1 - sq);
+    ctx.translate(0, 40);
+    ctx.beginPath();
+    ctx.moveTo(-90, 55);
+    ctx.bezierCurveTo(-105, -10, -45, -40, -10, -100);
+    ctx.quadraticCurveTo(0, -110, 10, -100);
+    ctx.bezierCurveTo(45, -40, 105, -10, 90, 55);
+    ctx.quadraticCurveTo(0, 75, -90, 55);
+    ctx.fillStyle = fill; ctx.fill();
+    ctx.strokeStyle = line; ctx.lineWidth = 7; ctx.stroke();
+    ctx.fillStyle = line;
+    ctx.beginPath(); ctx.ellipse(-30, 5, 13, 17, 0, 0, 7); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(30, 5, 13, 17, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = INK;
+    ctx.beginPath(); ctx.arc(-27, 9, 6, 0, 7); ctx.fill();
+    ctx.beginPath(); ctx.arc(33, 9, 6, 0, 7); ctx.fill();
+    ctx.strokeStyle = line; ctx.lineWidth = 6;
+    ctx.beginPath(); ctx.arc(0, 26, 22, 0.2, Math.PI - 0.2); ctx.stroke();
+    ctx.fillStyle = 'rgba(242,228,196,.5)';
+    ctx.beginPath(); ctx.ellipse(-50, -25, 7, 14, -0.5, 0, 7); ctx.fill();
+  }
+  if (kind === 'skel') {
+    const bob = Math.sin(t * 3) * 4;
+    ctx.translate(0, bob);
+    ctx.strokeStyle = line; ctx.lineWidth = 8;
+    // 背骨とあばら
+    ctx.beginPath(); ctx.moveTo(0, -40); ctx.lineTo(0, 70); ctx.stroke();
+    for (let i = 0; i < 4; i++) {
+      const y = -25 + i * 20, w = 44 - i * 5;
+      ctx.beginPath(); ctx.moveTo(-w, y + 6); ctx.quadraticCurveTo(0, y - 8, w, y + 6); ctx.stroke();
+    }
+    // こし・あし
+    ctx.beginPath(); ctx.moveTo(-30, 75); ctx.lineTo(30, 75); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(-22, 78); ctx.lineTo(-30, 150); ctx.moveTo(22, 78); ctx.lineTo(30, 150); ctx.stroke();
+    // うで と けん
+    const sw = Math.sin(t * 3) * 0.15;
+    ctx.beginPath(); ctx.moveTo(-40, -30); ctx.lineTo(-70, 20); ctx.lineTo(-60, 60); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(40, -30); ctx.lineTo(72, 10); ctx.stroke();
+    ctx.save(); ctx.translate(72, 10); ctx.rotate(-0.9 + sw);
+    ctx.lineWidth = 10; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, -120); ctx.stroke();
+    ctx.lineWidth = 8; ctx.beginPath(); ctx.moveTo(-18, -10); ctx.lineTo(18, -10); ctx.stroke();
+    ctx.restore();
+    // ずがいこつ
+    ctx.fillStyle = fill; ctx.lineWidth = 7;
+    ctx.beginPath(); ctx.arc(0, -85, 42, 0, 7); ctx.fill(); ctx.stroke();
+    ctx.fillRect(-22, -55, 44, 22); ctx.strokeRect(-22, -55, 44, 22);
+    ctx.fillStyle = INK;
+    ctx.beginPath(); ctx.arc(-16, -88, 11, 0, 7); ctx.fill();
+    ctx.beginPath(); ctx.arc(16, -88, 11, 0, 7); ctx.fill();
+    ctx.fillStyle = FIRE;
+    ctx.beginPath(); ctx.arc(-16, -88, 4, 0, 7); ctx.fill();
+    ctx.beginPath(); ctx.arc(16, -88, 4, 0, 7); ctx.fill();
+    ctx.strokeStyle = line; ctx.lineWidth = 3;
+    for (let i = -1; i <= 1; i++) { ctx.beginPath(); ctx.moveTo(i * 10, -55); ctx.lineTo(i * 10, -35); ctx.stroke(); }
+  }
+  if (kind === 'king') {
+    const bob = Math.sin(t * 1.5) * 2;
+    ctx.translate(0, bob);
+    // ローブ
+    ctx.beginPath();
+    ctx.moveTo(-40, -30); ctx.lineTo(40, -30); ctx.lineTo(80, 140); ctx.lineTo(-80, 140); ctx.closePath();
+    ctx.fillStyle = red > 0.5 ? '#4a0d10' : '#5a1216'; ctx.fill();
+    ctx.strokeStyle = line; ctx.lineWidth = 6; ctx.stroke();
+    // 白い毛皮のふち
+    ctx.fillStyle = line;
+    ctx.fillRect(-84, 128, 168, 16);
+    ctx.fillRect(-6, -30, 12, 160);
+    ctx.fillStyle = INK;
+    for (let i = -3; i <= 3; i++) ctx.fillRect(i * 22 - 2, 132, 4, 8);
+    // かお
+    ctx.fillStyle = line;
+    ctx.beginPath(); ctx.arc(0, -65, 34, 0, 7); ctx.fill();
+    // ひげ
+    ctx.beginPath(); ctx.moveTo(-32, -58); ctx.quadraticCurveTo(-30, 10, 0, 20); ctx.quadraticCurveTo(30, 10, 32, -58);
+    ctx.quadraticCurveTo(0, -40, -32, -58); ctx.fill();
+    ctx.strokeStyle = INK; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(-10, -30); ctx.lineTo(-6, 4); ctx.moveTo(10, -30); ctx.lineTo(6, 4); ctx.stroke();
+    // にこにこ目
+    ctx.lineWidth = 4;
+    ctx.beginPath(); ctx.arc(-13, -68, 7, Math.PI + 0.3, -0.3); ctx.stroke();
+    ctx.beginPath(); ctx.arc(13, -68, 7, Math.PI + 0.3, -0.3); ctx.stroke();
+    // かんむり
+    drawCrown(0, -100, 1, 0, line);
+    // つえ
+    ctx.strokeStyle = line; ctx.lineWidth = 7;
+    ctx.beginPath(); ctx.moveTo(58, 110); ctx.lineTo(70, -40); ctx.stroke();
+    ctx.fillStyle = FIRE; ctx.beginPath(); ctx.arc(70, -48, 10, 0, 7); ctx.fill();
+  }
+  if (kind === 'demon') {
+    const br = Math.sin(t * 2.2) * 3;
+    ctx.translate(0, br);
+    // マント(つばさ)
+    ctx.fillStyle = red > 0.5 ? '#6a1012' : '#3d0a0c';
+    ctx.beginPath();
+    ctx.moveTo(0, -60); ctx.lineTo(-140, -40 - br * 2); ctx.lineTo(-120, 30); ctx.lineTo(-150, 60); ctx.lineTo(-100, 150);
+    ctx.lineTo(100, 150); ctx.lineTo(150, 60); ctx.lineTo(120, 30); ctx.lineTo(140, -40 - br * 2); ctx.closePath();
+    ctx.fill(); ctx.strokeStyle = FIRE; ctx.lineWidth = 4; ctx.stroke();
+    // からだ
+    ctx.beginPath();
+    ctx.moveTo(-55, -40); ctx.quadraticCurveTo(-85, 60, -70, 150); ctx.lineTo(70, 150); ctx.quadraticCurveTo(85, 60, 55, -40); ctx.closePath();
+    ctx.fillStyle = fill; ctx.fill(); ctx.strokeStyle = line; ctx.lineWidth = 7; ctx.stroke();
+    // ツノ
+    ctx.fillStyle = line;
+    ctx.beginPath(); ctx.moveTo(-30, -110); ctx.quadraticCurveTo(-80, -130, -70, -190); ctx.quadraticCurveTo(-55, -140, -15, -128); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(30, -110); ctx.quadraticCurveTo(80, -130, 70, -190); ctx.quadraticCurveTo(55, -140, 15, -128); ctx.fill();
+    // あたま
+    ctx.fillStyle = fill; ctx.strokeStyle = line; ctx.lineWidth = 7;
+    ctx.beginPath(); ctx.moveTo(-45, -120); ctx.lineTo(45, -120); ctx.lineTo(38, -50); ctx.lineTo(0, -30); ctx.lineTo(-38, -50); ctx.closePath();
+    ctx.fill(); ctx.stroke();
+    // 光る目
+    ctx.globalAlpha *= 0.9;
+    ctx.drawImage(glow, -45, -110, 36, 36); ctx.drawImage(glow, 9, -110, 36, 36);
+    ctx.globalAlpha = Math.min(1, ctx.globalAlpha / 0.9);
+    ctx.fillStyle = FIRE;
+    ctx.beginPath(); ctx.moveTo(-34, -96); ctx.lineTo(-10, -88); ctx.lineTo(-30, -84); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(34, -96); ctx.lineTo(10, -88); ctx.lineTo(30, -84); ctx.closePath(); ctx.fill();
+    // きば
+    ctx.fillStyle = line;
+    ctx.beginPath(); ctx.moveTo(-20, -60); ctx.lineTo(-14, -46); ctx.lineTo(-8, -60); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(8, -60); ctx.lineTo(14, -46); ctx.lineTo(20, -60); ctx.fill();
+    // かたむいた王冠(まだ かぶっている)
+    drawCrown(38, -140, 0.75, 0.5, line);
+  }
+}
+function drawCrown(x, y, s, rot, line){
+  ctx.save(); ctx.translate(x, y); ctx.rotate(rot); ctx.scale(s, s);
+  ctx.fillStyle = line;
+  ctx.beginPath();
+  ctx.moveTo(-32, 12); ctx.lineTo(-34, -22); ctx.lineTo(-17, -4); ctx.lineTo(0, -30); ctx.lineTo(17, -4); ctx.lineTo(34, -22); ctx.lineTo(32, 12);
+  ctx.closePath(); ctx.fill();
+  ctx.fillStyle = FIRE; ctx.beginPath(); ctx.arc(0, 2, 6, 0, 7); ctx.fill();
+  ctx.restore();
+}
+
+function drawSlash(s){
+  const k = s.t / 0.28;
+  const cx = W / 2, cy = foeY(), L = Math.min(W, 420) * 0.55;
+  ctx.save();
+  ctx.globalAlpha = 1 - k;
+  ctx.strokeStyle = s.crit ? FIRE : PAPER;
+  ctx.lineCap = 'round';
+  ctx.lineWidth = (s.crit ? 16 : 9) * (1 - k * 0.7);
+  const e = Math.min(1, k * 3);
+  ctx.beginPath(); ctx.moveTo(cx - L, cy - L * 0.8); ctx.lineTo(cx - L + 2 * L * e, cy - L * 0.8 + 1.6 * L * 0.8 * e); ctx.stroke();
+  if (s.crit) {
+    ctx.beginPath(); ctx.moveTo(cx + L, cy - L * 0.8); ctx.lineTo(cx + L - 2 * L * e, cy - L * 0.8 + 1.6 * L * 0.8 * e); ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function box(x, y, w, h){
+  ctx.fillStyle = INK; ctx.fillRect(x, y, w, h);
+  ctx.strokeStyle = PAPER; ctx.lineWidth = 3; ctx.strokeRect(x + 3, y + 3, w - 6, h - 6);
+}
+function drawStatus(){
+  const x = 12, y = 12 + SAFE, w = W - 24, h = 64;
+  box(x, y, w - 56, h);
+  ctx.fillStyle = PAPER; ctx.textAlign = 'left';
+  ctx.font = 'bold 16px sans-serif';
+  ctx.fillText('ゆうしゃ  Lv' + hero.lv, x + 16, y + 26);
+  ctx.textAlign = 'right';
+  ctx.font = '13px sans-serif';
+  ctx.fillText(FOES[stage].floor + '  ' + (stage + 1) + '/3', x + w - 72, y + 26);
+  const bw = w - 56 - 130, bx = x + 16, by = y + 38;
+  ctx.fillStyle = INK2; ctx.fillRect(bx, by, bw, 12);
+  const low = hero.hp <= hero.max * 0.3;
+  ctx.fillStyle = low ? FIRE : PAPER; ctx.fillRect(bx, by, bw * hero.hp / hero.max, 12);
+  ctx.textAlign = 'left'; ctx.fillStyle = low ? FIRE : PAPER; ctx.font = 'bold 14px sans-serif';
+  ctx.fillText('HP ' + hero.hp + '/' + hero.max, bx + bw + 8, by + 11);
+}
+function drawMsg(){
+  const x = 12, w = W - 24, h = 58, y = H - 170 - Math.max(0, SAFE);
+  box(x, y, w, h);
+  ctx.fillStyle = PAPER; ctx.textAlign = 'left'; ctx.font = 'bold 15px sans-serif';
+  fitText(msg, x + 16, y + 35, w - 32);
+  if (phase === 'talk' && Math.sin(performance.now() / 180) > 0) {
+    ctx.fillStyle = PAPER; ctx.beginPath();
+    ctx.moveTo(x + w - 26, y + h - 18); ctx.lineTo(x + w - 14, y + h - 18); ctx.lineTo(x + w - 20, y + h - 10); ctx.fill();
+  }
+}
+function fitText(t, x, y, maxW){
+  let size = 15;
+  ctx.font = 'bold ' + size + 'px sans-serif';
+  while (ctx.measureText(t).width > maxW && size > 10) { size--; ctx.font = 'bold ' + size + 'px sans-serif'; }
+  ctx.fillText(t, x, y);
+}
+function drawGauge(){
+  const F = curF();
+  const x = 24, w = W - 48, h = 34, y = H - 96 - Math.max(0, SAFE);
+  const cx = x + w / 2;
+  ctx.fillStyle = INK; ctx.fillRect(x, y, w, h);
+  const Z = F.Z;
+  ctx.fillStyle = 'rgba(242,228,196,.12)'; ctx.fillRect(cx - w * Z.graze, y, w * Z.graze * 2, h);
+  ctx.fillStyle = 'rgba(242,228,196,.28)'; ctx.fillRect(cx - w * Z.hit, y, w * Z.hit * 2, h);
+  ctx.fillStyle = FIRE; ctx.fillRect(cx - w * Z.crit, y, w * Z.crit * 2, h);
+  ctx.strokeStyle = PAPER; ctx.lineWidth = 3; ctx.strokeRect(x, y, w, h);
+  const pos = phase === 'battle' ? gaugePos(gaugeT, F.P) : 0;
+  const px = x + w * pos;
+  const dim = stun > 0 || cool > 0;
+  ctx.fillStyle = stun > 0 ? 'rgba(242,228,196,.35)' : PAPER;
+  ctx.fillRect(px - 3, y - 8, 6, h + 16);
+  ctx.beginPath(); ctx.moveTo(px - 9, y - 14); ctx.lineTo(px + 9, y - 14); ctx.lineTo(px, y - 4); ctx.fill();
+  ctx.textAlign = 'center'; ctx.font = 'bold 14px sans-serif';
+  ctx.fillStyle = stun > 0 ? FIRE : PAPER;
+  ctx.globalAlpha = dim && stun <= 0 ? 0.5 : 1;
+  ctx.fillText(stun > 0 ? 'よろけちゅう…' : 'あかい まんなかで タップ', cx, y + h + 26);
+  ctx.globalAlpha = 1;
+}
+
+/* ============================================================
+   ゲームループ
+   ============================================================ */
+let last = performance.now();
+function frame(now){
+  const dt = Math.min(0.05, (now - last) / 1000);
+  last = now;
+  update(dt);
+  draw();
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
